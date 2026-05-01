@@ -22,11 +22,13 @@ const callCaptionVerifier = async (caption: string) => {
   try {
     const app = await Client.connect("onjmm/smartech-caption-verifier");
     const result = await app.predict("/predict", [caption]);
-    // Returns the first data element from the Gradio output array
-    return result.data[0];
+    
+    // Gradio returns { data: [ result ] }
+    // We want to return the actual content inside data[0]
+    return result.data && result.data[0] ? result.data[0] : null;
   } catch (error) {
     console.error("Gradio Connection Error:", error);
-    throw error;
+    return null; // Return null so analyzeContent knows it failed
   }
 };
 
@@ -96,47 +98,41 @@ export function CaptionsPage() {
     try {
       const apiData = await callCaptionVerifier(caption);
 
+      // Default values if API fails or returns nothing
       let captionScore = 70;
       let grammar = 70;
       let inclusivity = 70;
       let tone = 70;
-      let status: "Accepted" | "Rejected" = "Rejected";
       let remarks = "Analysis completed";
 
-      if (typeof apiData === "object" && apiData !== null) {
-        captionScore = apiData.score || apiData.captionScore || 70;
-        grammar = apiData.grammar || 70;
-        inclusivity = apiData.inclusivity || 70;
-        tone = apiData.tone || 70;
-        status = apiData.status || (captionScore >= 75 ? "Accepted" : "Rejected");
-        remarks = apiData.remarks || apiData.recommendation || "Analysis completed";
-      } else if (typeof apiData === "string") {
-        try {
-          const parsed = JSON.parse(apiData);
-          captionScore = parsed.score || parsed.captionScore || 70;
-          grammar = parsed.grammar || 70;
-          inclusivity = parsed.inclusivity || 70;
-          tone = parsed.tone || 70;
-          status = parsed.status || (captionScore >= 75 ? "Accepted" : "Rejected");
-          remarks = parsed.remarks || parsed.recommendation || apiData;
-        } catch {
-          remarks = apiData;
-          status = captionScore >= 75 ? "Accepted" : "Rejected";
+      if (apiData) {
+        // CASE A: API returns an object directly
+        if (typeof apiData === "object") {
+          captionScore = apiData.score || apiData.captionScore || 75;
+          grammar = apiData.grammar || 75;
+          inclusivity = apiData.inclusivity || 75;
+          tone = apiData.tone || 75;
+          remarks = apiData.remarks || apiData.recommendation || "Analysis complete";
+        } 
+        // CASE B: API returns a JSON string
+        else if (typeof apiData === "string") {
+          try {
+            const parsed = JSON.parse(apiData);
+            captionScore = parsed.score || 75;
+            grammar = parsed.grammar || 75;
+            inclusivity = parsed.inclusivity || 75;
+            tone = parsed.tone || 75;
+            remarks = parsed.remarks || "Analysis complete";
+          } catch {
+            remarks = apiData; // Use string as remarks if not JSON
+          }
         }
+      } else {
+        // If apiData is null, throw error to trigger the 'smart' fallback below
+        throw new Error("No data received from API");
       }
 
-      const result: AnalysisResult = {
-        captionScore,
-        remarks,
-        status,
-        grammar,
-        inclusivity,
-        tone,
-      };
-
-      setAnalysisResult(result);
-      await submitPost(result);
-    } catch (error) {
+      const status: "Accepted" | "Rejected" = captionScore >= 75 ? "Accepted" : "Rejected"; catch (error) {
       console.warn("Caption verifier API unavailable, using fallback analysis:", error);
 
       let captionScore = 70;
