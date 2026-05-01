@@ -9,6 +9,7 @@ import {
 import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { Client } from "@gradio/client";
 
 const formatDateSafe = (date: Date): string => {
   const year = date.getFullYear();
@@ -18,10 +19,10 @@ const formatDateSafe = (date: Date): string => {
 };
 
 const callCaptionVerifier = async (caption: string) => {
-  const sessionHash =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().replace(/-/g, "").slice(0, 12)
-      : Math.random().toString(36).slice(2);
+  const app = await Client.connect("onjmm/smartech-caption-verifier");
+  const result = await app.predict("/predict", [caption]); 
+  return result.data[0];
+};
 
   const joinResponse = await fetch(
     "https://onjmm-smartech-caption-verifier.hf.space/queue/join",
