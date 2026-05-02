@@ -29,7 +29,7 @@ interface AnalysisResult {
   status: "Accepted" | "Rejected";
 }
 
-export function PubMatsPage() {
+export default function PubMatsPage() {
   const { addPost } = usePosts();
   const { currentOffice, isLoading } = useAuth();
 
