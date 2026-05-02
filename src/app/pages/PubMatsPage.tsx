@@ -152,21 +152,23 @@ export default function PubMatsPage() {
         collaborators_text: JSON.stringify(selectedCollaborators),
       });
 
-      // INTEGRATION: result.data[0] is annotated image, result.data[1] is JSON report
+      // result.data[0] is the annotated image, result.data[1] is the JSON report
       const annotatedImage = result.data[0] as string;
       const apiData = result.data[1] as any;
       
       // Update preview to show the version with detection boxes/highlights
       setUploadedImage(annotatedImage);
       
-      // Extract scoring and feedback from the new report structure
-      const pubmatScore = apiData?.overall === "PASS" ? 100 : 70;
-      const remarks = apiData?.logos?.remark || 
-                      apiData?.watermark?.remark || 
-                      "Audit complete. Please check annotations.";
-      const status = apiData?.overall === "PASS" ? "Accepted" : "Rejected";
+      // DEEP PARSING: Extract specific remarks from nested report keys
+      const specificRemark = 
+        apiData?.logos?.remark || 
+        apiData?.watermark?.remark || 
+        (apiData?.overall === "PASS" ? "Branding compliance verified." : "Compliance issues detected.");
 
-      setAnalysisResult({ pubmatScore, remarks, status });
+      const status = apiData?.overall === "PASS" ? "Accepted" : "Rejected";
+      const pubmatScore = apiData?.overall === "PASS" ? 100 : 70;
+
+      setAnalysisResult({ pubmatScore, remarks: specificRemark, status });
 
       if (!isLoading && currentOffice) {
         const today = new Date().toISOString().split("T")[0];
@@ -176,11 +178,11 @@ export default function PubMatsPage() {
           id: `POST-${Date.now().toString().slice(-6)}`,
           platform: selectedPlatforms.length === 1 ? selectedPlatforms[0] : selectedPlatforms,
           caption: "",
-          thumbnail: annotatedImage, // Save the annotated version for history
+          thumbnail: annotatedImage, // CRITICAL: This fixes the empty image in the table
           score: pubmatScore,
           pubmatScore,
           status,
-          recommendation: remarks,
+          recommendation: specificRemark, // This fixes the generic remarks in the table
           date: today,
           office: currentOffice,
           submissionDate: auditDateStr,
@@ -216,7 +218,7 @@ export default function PubMatsPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="space-y-6">
-        {/* Header Configuration */}
+        {/* Post Type & Collaborators Rows */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Select Post Type</label>
@@ -235,14 +237,12 @@ export default function PubMatsPage() {
               onClick={() => setShowTypeHelp((prev) => !prev)}
               className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-foreground hover:bg-muted/40"
             >
-              <span className="flex items-center gap-2">
-                <Info className="h-4 w-4 text-primary" />
-                <span>What does this post type check?</span>
-              </span>
+              <Info className="h-4 w-4 text-primary" />
+              <span>What does this post type check?</span>
             </button>
             {showTypeHelp && (
               <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                This helps SMARTech evaluate elements like hierarchy, logo placement, and clarity based on the {postType || 'selected'} format.
+                Evaluates logo placement, hierarchy, and watermark requirements specific to {postType || 'the selected'} format.
               </div>
             )}
           </div>
@@ -289,12 +289,8 @@ export default function PubMatsPage() {
 
         {/* Upload Area */}
         <div className="bg-card rounded-lg border border-border p-6">
-          <label className="block mb-4">
-            <span className="text-lg font-semibold text-primary mb-2 block">PubMat Checker</span>
-            <span className="text-sm text-muted-foreground block mb-4">
-              Upload your publication material (PNG, JPG, or JPEG)
-            </span>
-          </label>
+          <label className="block mb-2 text-lg font-semibold text-primary">PubMat Checker</label>
+          <p className="text-sm text-muted-foreground mb-4">Upload publication material (PNG, JPG, or JPEG)</p>
           {!uploadedImage ? (
             <div className="relative">
               <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="pubmat-upload" />
@@ -314,9 +310,7 @@ export default function PubMatsPage() {
                     <p className="text-sm text-muted-foreground">PNG, JPG or JPEG</p>
                   </div>
                 </div>
-                <span className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium text-foreground">
-                  Browse files
-                </span>
+                <span className="rounded-lg border border-border bg-card px-4 py-2 text-sm font-medium">Browse files</span>
               </label>
             </div>
           ) : (
@@ -324,11 +318,9 @@ export default function PubMatsPage() {
               <div className="rounded-lg border border-border bg-background p-4 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <FileImage className="h-5 w-5 text-primary" />
-                  <span className="text-sm font-medium text-foreground">{fileName}</span>
+                  <span className="text-sm font-medium">{fileName}</span>
                 </div>
-                <button onClick={handleRemoveImage} className="text-sm font-medium text-red-600 hover:text-red-700">
-                  Remove
-                </button>
+                <button onClick={handleRemoveImage} className="text-sm font-medium text-red-600 hover:text-red-700">Remove</button>
               </div>
               <div className="rounded-lg border border-border overflow-hidden bg-muted/20">
                 <img src={uploadedImage} alt="Preview" className="mx-auto max-h-[500px] w-auto object-contain" />
@@ -337,39 +329,33 @@ export default function PubMatsPage() {
           )}
         </div>
 
-        {/* Platform Selection */}
-        <div className="bg-card rounded-lg border border-border p-6">
-          <label className="block mb-4">
-            <span className="text-lg font-semibold text-primary mb-2 block">Platform</span>
-            <span className="text-sm text-muted-foreground block mb-4">Select all platforms for your post</span>
-          </label>
-          <div className="space-y-3">
-            {platforms.map((p) => (
-              <label key={p} className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selectedPlatforms.includes(p)}
-                  onChange={(e) =>
-                    setSelectedPlatforms(e.target.checked ? [...selectedPlatforms, p] : selectedPlatforms.filter((i) => i !== p))
-                  }
-                  className="h-4 w-4 appearance-none rounded border border-border bg-background checked:bg-primary checked:border-primary relative after:content-[''] after:absolute after:hidden after:left-1/2 after:top-1/2 after:w-[4px] after:h-[8px] after:border-white after:border-r-[2.5px] after:border-b-[2.5px] after:rotate-45 after:-translate-x-1/2 after:-translate-y-[60%] checked:after:block"
-                />
-                <span className="text-foreground">{p}</span>
-              </label>
-            ))}
+        {/* Platform & Date Selection */}
+        <div className="grid gap-6 md:grid-cols-2">
+          <div className="bg-card rounded-lg border border-border p-6">
+            <label className="block mb-4 font-semibold text-primary">Platform</label>
+            <div className="space-y-3">
+              {platforms.map((p) => (
+                <label key={p} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedPlatforms.includes(p)}
+                    onChange={(e) =>
+                      setSelectedPlatforms(e.target.checked ? [...selectedPlatforms, p] : selectedPlatforms.filter((i) => i !== p))
+                    }
+                    className="h-4 w-4 appearance-none rounded border border-border bg-background checked:bg-primary checked:border-primary relative after:content-[''] after:absolute after:hidden after:left-1/2 after:top-1/2 after:w-[4px] after:h-[8px] after:border-white after:border-r-[2.5px] after:border-b-[2.5px] after:rotate-45 after:-translate-x-1/2 after:-translate-y-[60%] checked:after:block"
+                  />
+                  <span className="text-foreground">{p}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="bg-card rounded-lg border border-border p-6">
+            <label className="block mb-4 font-semibold text-primary">Posting Date</label>
+            <DatePicker date={postDate} onDateChange={setPostDate} placeholder="Pick a date" minDate={new Date()} />
           </div>
         </div>
 
-        {/* Date Selection */}
-        <div className="bg-card rounded-lg border border-border p-6">
-          <label className="block mb-4">
-            <span className="text-lg font-semibold text-primary mb-2 block">Date</span>
-            <span className="text-sm text-muted-foreground block mb-4">Select posting date</span>
-          </label>
-          <DatePicker date={postDate} onDateChange={setPostDate} placeholder="Pick a date" minDate={new Date()} />
-        </div>
-
-        {/* Submit Action */}
+        {/* Action Button */}
         <div className="flex justify-end pt-2">
           <button
             type="button"
@@ -378,36 +364,24 @@ export default function PubMatsPage() {
             className="flex items-center space-x-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
           >
             {isAnalyzing ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Analyzing...</span>
-              </>
+              <><Loader2 className="h-5 w-5 animate-spin" /><span>Analyzing...</span></>
             ) : (
-              <>
-                <TrendingUp className="h-5 w-5" />
-                <span>Analyze</span>
-              </>
+              <><TrendingUp className="h-5 w-5" /><span>Analyze PubMat</span></>
             )}
           </button>
         </div>
 
-        {/* Results Display */}
+        {/* Result UI */}
         {analysisResult && (
           <div className={`rounded-lg border-2 p-6 animate-in fade-in slide-in-from-top-4 duration-300 ${
             analysisResult.status === "Accepted" ? "border-green-500 bg-green-50/10" : "border-red-500 bg-red-50/10"
           }`}>
             <div className="flex items-center space-x-3 mb-4">
-              {analysisResult.status === "Accepted" ? (
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              ) : (
-                <AlertCircle className="h-6 w-6 text-red-600" />
-              )}
+              {analysisResult.status === "Accepted" ? <CheckCircle className="h-6 w-6 text-green-600" /> : <AlertCircle className="h-6 w-6 text-red-600" />}
               <h3 className="text-lg font-bold">{analysisResult.status} (Score: {analysisResult.pubmatScore}%)</h3>
             </div>
             <p className="text-sm text-foreground mb-4 whitespace-pre-wrap">{analysisResult.remarks}</p>
-            <button onClick={handleStartNewAudit} className="bg-accent px-4 py-2 rounded-lg text-sm font-medium">
-              Start New Audit
-            </button>
+            <button onClick={handleStartNewAudit} className="bg-accent px-4 py-2 rounded-lg text-sm font-medium">Start New Audit</button>
           </div>
         )}
 
