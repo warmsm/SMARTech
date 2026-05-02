@@ -12,7 +12,8 @@ import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Client } from "@gradio/client";
 
-export default function CaptionsPage() {
+// CHANGED: Removed 'default' to fix the Vercel build error
+export function CaptionsPage() {
   const { addPost } = usePosts();
   const { currentOffice } = useAuth();
   
@@ -46,9 +47,9 @@ export default function CaptionsPage() {
       
       if (result.data) {
         // Mapping the 4 outputs from Python: [remarks, grammar, inclusivity, tone]
-        const [remarks, gScore, iScore, tScore] = result.data;
+        const [remarks, gScore, iScore, tScore] = result.data as [string, number, number, number];
         
-        // Calculate the weighted average matching your backend logic
+        // Calculate weighted average
         const finalWeightedScore = Math.floor(
           (Number(gScore) * 0.4) + 
           (Number(iScore) * 0.4) + 
@@ -91,21 +92,21 @@ export default function CaptionsPage() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Caption Verifier</h1>
-        <p className="text-muted-foreground">
-          Analyze your social media captions for NYC professional standards.
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Caption Verifier</h1>
+        <p className="text-muted-foreground text-sm lg:text-base">
+          Analyze your social media captions for professional standards using DeBERTa models.
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* Left Column: Input */}
+        {/* Input Column */}
         <div className="lg:col-span-3 space-y-6">
-          <div className="bg-card border rounded-xl p-6 shadow-sm space-y-4">
-            <label className="text-sm font-semibold uppercase tracking-wider opacity-70">
+          <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-4">
+            <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               Content Entry
             </label>
             <textarea 
-              className="w-full min-h-[200px] p-4 rounded-lg border bg-background focus:ring-2 focus:ring-primary outline-none transition-all"
+              className="w-full min-h-[220px] p-4 rounded-lg border border-border bg-background focus:ring-2 focus:ring-primary outline-none transition-all resize-none text-sm"
               placeholder="Paste your caption here for AI analysis..."
               value={caption}
               onChange={(e) => setCaption(e.target.value)}
@@ -118,10 +119,10 @@ export default function CaptionsPage() {
                   onClick={() => setSelectedPlatforms(prev => 
                     prev.includes(plt) ? prev.filter(p => p !== plt) : [...prev, plt]
                   )}
-                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                  className={`px-4 py-1.5 rounded-full text-xs font-medium border transition-all ${
                     selectedPlatforms.includes(plt) 
-                    ? 'bg-primary text-white border-primary' 
-                    : 'hover:bg-accent'
+                    ? 'bg-primary text-primary-foreground border-primary' 
+                    : 'bg-card text-foreground border-border hover:bg-muted'
                   }`}
                 >
                   {plt}
@@ -132,30 +133,30 @@ export default function CaptionsPage() {
             <button 
               onClick={analyzeContent}
               disabled={isAnalyzing || !caption.trim()}
-              className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-3 hover:opacity-90 disabled:opacity-50 transition-all"
+              className="w-full py-4 bg-primary text-primary-foreground font-bold rounded-lg flex items-center justify-center gap-3 hover:opacity-90 disabled:opacity-50 transition-all shadow-md"
             >
               {isAnalyzing ? (
                 <>
                   <Loader2 className="animate-spin h-5 w-5" />
-                  AI is Analyzing...
+                  Processing through Hugging Face...
                 </>
               ) : (
                 <>
                   <TrendingUp className="h-5 w-5" />
-                  Run Audit
+                  Run Caption Audit
                 </>
               )}
             </button>
           </div>
         </div>
 
-        {/* Right Column: Results */}
+        {/* Results Column */}
         <div className="lg:col-span-2">
           {analysisResult ? (
-            <div className={`rounded-xl border-2 p-6 shadow-lg transition-all ${
+            <div className={`rounded-xl border-2 p-6 shadow-lg transition-all animate-in fade-in slide-in-from-right-4 ${
               analysisResult.status === 'Accepted' 
-              ? 'border-green-500 bg-green-50/50' 
-              : 'border-red-500 bg-red-50/50'
+              ? 'border-green-500 bg-green-50/10' 
+              : 'border-red-500 bg-red-50/10'
             }`}>
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
@@ -170,26 +171,26 @@ export default function CaptionsPage() {
                     {analysisResult.status}
                   </span>
                 </div>
-                <span className="text-xs font-mono opacity-50">v3.1.0-AI</span>
+                <span className="text-[10px] font-mono opacity-40 uppercase tracking-tighter">SMARTech Engine</span>
               </div>
 
               <div className="text-center py-6">
-                <div className={`text-7xl font-black mb-2 ${
+                <div className={`text-7xl font-black mb-2 tracking-tighter ${
                   analysisResult.status === 'Accepted' ? 'text-green-800' : 'text-red-800'
                 }`}>
                   {analysisResult.captionScore}
                 </div>
-                <div className="text-xs uppercase font-bold tracking-widest opacity-60">
+                <div className="text-[10px] uppercase font-bold tracking-widest opacity-60">
                   Overall Compliance Score
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 border-y border-black/10 py-6 my-6">
+              <div className="grid grid-cols-3 gap-2 border-y border-border py-6 my-6">
                 <div className="text-center">
                   <div className="text-xl font-bold">{analysisResult.grammar}</div>
                   <div className="text-[10px] uppercase opacity-60">Grammar</div>
                 </div>
-                <div className="text-center border-x border-black/10">
+                <div className="text-center border-x border-border">
                   <div className="text-xl font-bold">{analysisResult.inclusivity}</div>
                   <div className="text-[10px] uppercase opacity-60">Inclusivity</div>
                 </div>
@@ -200,23 +201,28 @@ export default function CaptionsPage() {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase opacity-60">AI Remarks:</h4>
-                <p className="text-sm leading-relaxed text-foreground/80 italic">
+                <h4 className="text-[10px] font-bold uppercase opacity-60 flex items-center gap-1">
+                  <Calendar className="h-3 w-3" /> AI Insights & Remarks:
+                </h4>
+                <p className="text-sm leading-relaxed text-foreground/80 italic bg-background/50 p-3 rounded-lg border border-border">
                   "{analysisResult.remarks}"
                 </p>
               </div>
 
               <button 
                 onClick={() => {setAnalysisResult(null); setCaption("");}}
-                className="w-full mt-8 py-2 text-sm font-semibold border border-black/10 rounded-lg hover:bg-black/5 transition-colors"
+                className="w-full mt-8 py-2 text-xs font-semibold border border-border rounded-lg bg-background hover:bg-muted transition-colors flex items-center justify-center gap-2"
               >
-                Start New Audit
+                <Share2 className="h-3 w-3" /> Start New Audit
               </button>
             </div>
           ) : (
-            <div className="h-full min-h-[300px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-8 text-center opacity-40">
-              <Search className="h-12 w-12 mb-4" />
-              <p className="text-sm font-medium">Audit Results will appear here after analysis.</p>
+            <div className="h-full min-h-[400px] border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center p-8 text-center opacity-40 bg-muted/5">
+              <div className="bg-muted p-4 rounded-full mb-4">
+                <Search className="h-10 w-10 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-foreground">Awaiting Input</h3>
+              <p className="text-xs max-w-[200px] mx-auto mt-2">Results will generate here once you run the audit.</p>
             </div>
           )}
         </div>
