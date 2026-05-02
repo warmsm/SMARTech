@@ -134,23 +134,25 @@ export default function PubMatsPage() {
 
   /**
    * Primary Analysis logic connecting to Hugging Face
+   * Updated to use /gradio_api/predict to resolve 404 errors
    */
   const analyzeContent = async () => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
     try {
-      // Stringify collaborators for Python backend processing
       const collabsJson = JSON.stringify(selectedCollaborators);
 
-      // FIXED: Pointing to /run/predict to avoid 404
       const response = await fetch(
-        "https://lfaithb-smartech-pubmat-checker.hf.space/run/predict",
+        "https://lfaithb-smartech-pubmat-checker.hf.space/gradio_api/predict",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             data: [uploadedImage, postType, collabsJson],
+            event_data: null,
+            fn_index: 0,
+            trigger_id: 0
           }),
         }
       );
@@ -158,18 +160,16 @@ export default function PubMatsPage() {
       if (!response.ok) throw new Error(`Server responded with ${response.status}`);
 
       const result = await response.json();
-      const apiData = result.data[0];
+      const apiData = result.data ? result.data[0] : null;
 
-      if (apiData.error) throw new Error(apiData.error);
+      if (!apiData || apiData.error) throw new Error(apiData?.error || "Invalid response");
 
-      // Extract scores and remarks with fallbacks
       const pubmatScore = apiData.score || apiData.pubmatScore || 0;
       const status = apiData.status || (pubmatScore >= 75 ? "Accepted" : "Rejected");
       const remarks = apiData.remarks || apiData.recommendation || "Analysis complete.";
 
       setAnalysisResult({ pubmatScore, remarks, status });
 
-      // Save to PostsContext for Dashboard visibility
       if (!isLoading && currentOffice) {
         const today = new Date().toISOString().split("T")[0];
         const auditDateStr = postDate ? formatDateSafe(postDate) : today;
