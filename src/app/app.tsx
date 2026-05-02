@@ -14,12 +14,11 @@ import { AccessRequestsProvider } from "@/contexts/AccessRequestsContext";
 import { HelpButton } from "@/app/components/HelpButton";
 import { SmarTechLogo } from "@/app/components/SmarTechLogo";
 
-// KEEP: These use Named Exports { } because we edited them earlier
-import { PubMatsPage } from "@/app/pages/PubMatsPage";
-import { CaptionsPage } from "@/app/pages/CaptionsPage";
-import { AccountAccessPage } from "@/app/pages/AccountAccessPage";
-
-// FIXED: Removed { } for these because they use 'export default' in their files
+// UNIVERSAL FIX: Removed curly braces from ALL page imports 
+// to match 'export default' files.
+import PubMatsPage from "@/app/pages/PubMatsPage";
+import CaptionsPage from "@/app/pages/CaptionsPage";
+import AccountAccessPage from "@/app/pages/AccountAccessPage";
 import ForgotPasswordPage from "@/app/pages/ForgotPasswordPage";
 import HandoffRequestPage from "@/app/pages/HandoffRequestPage";
 import RequestApprovalPage from "@/app/pages/RequestApprovalPage";
@@ -30,7 +29,7 @@ import ReviewAppealsPage from "@/app/pages/ReviewAppealsPage";
 import CreateAccountRequestPage from "@/app/pages/CreateAccountRequestPage";
 
 /**
- * Shared layout for authenticated pages to keep AppRoutes clean
+ * Shared layout for authenticated pages
  */
 function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { currentOffice } = useAuth();
