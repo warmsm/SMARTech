@@ -132,7 +132,7 @@ export function PubMatsPage() {
     const auditDateStr = formatDateSafe(postDate);
 
     try {
-      const response = await fetch("https://lfaithb-smartech-pubmat-checker.hf.space/api/predict", {
+      const response = await fetch("https://lfaithb-smartech-pubmat-checker.hf.space/run/predict", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ data: [uploadedImage] }),
