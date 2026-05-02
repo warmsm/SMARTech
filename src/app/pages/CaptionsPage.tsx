@@ -23,12 +23,13 @@ const callCaptionVerifier = async (caption: string) => {
     const app = await Client.connect("onjmm/smartech-caption-verifier");
     const result = await app.predict("/predict", [caption]);
     
-    // Gradio returns { data: [ result ] }
-    // We want to return the actual content inside data[0]
+    // Log the result to your browser console for debugging
+    console.log("Gradio API Response:", result);
+    
     return result.data && result.data[0] ? result.data[0] : null;
   } catch (error) {
     console.error("Gradio Connection Error:", error);
-    return null; // Return null so analyzeContent knows it failed
+    return null; 
   }
 };
 
@@ -98,43 +99,62 @@ export function CaptionsPage() {
     try {
       const apiData = await callCaptionVerifier(caption);
 
-      // Default values if API fails or returns nothing
-      let captionScore = 70;
-      let grammar = 70;
-      let inclusivity = 70;
-      let tone = 70;
-      let remarks = "Analysis completed";
-
-      if (apiData) {
-        // CASE A: API returns an object directly
-        if (typeof apiData === "object") {
-          captionScore = apiData.score || apiData.captionScore || 75;
-          grammar = apiData.grammar || 75;
-          inclusivity = apiData.inclusivity || 75;
-          tone = apiData.tone || 75;
-          remarks = apiData.remarks || apiData.recommendation || "Analysis complete";
-        } 
-        // CASE B: API returns a JSON string
-        else if (typeof apiData === "string") {
-          try {
-            const parsed = JSON.parse(apiData);
-            captionScore = parsed.score || 75;
-            grammar = parsed.grammar || 75;
-            inclusivity = parsed.inclusivity || 75;
-            tone = parsed.tone || 75;
-            remarks = parsed.remarks || "Analysis complete";
-          } catch {
-            remarks = apiData; // Use string as remarks if not JSON
-          }
-        }
-      } else {
-        // If apiData is null, throw error to trigger the 'smart' fallback below
+      if (!apiData) {
         throw new Error("No data received from API");
       }
 
-      const status: "Accepted" | "Rejected" = captionScore >= 75 ? "Accepted" : "Rejected"; catch (error) {
-      console.warn("Caption verifier API unavailable, using fallback analysis:", error);
+      let captionScore = 75;
+      let grammar = 75;
+      let inclusivity = 75;
+      let tone = 75;
+      let remarks = "Analysis completed";
 
+      // Handle Object responses
+      if (typeof apiData === "object" && !Array.isArray(apiData)) {
+        captionScore = apiData.score || apiData.captionScore || 75;
+        grammar = apiData.grammar || 75;
+        inclusivity = apiData.inclusivity || 75;
+        tone = apiData.tone || 75;
+        remarks = apiData.remarks || apiData.recommendation || "Analysis complete";
+      } 
+      // Handle Array responses (Common in Gradio)
+      else if (Array.isArray(apiData)) {
+        captionScore = Number(apiData[0]) || 75;
+        grammar = Number(apiData[1]) || 75;
+        inclusivity = Number(apiData[2]) || 75;
+        tone = Number(apiData[3]) || 75;
+        remarks = apiData[4] || "Analysis complete";
+      }
+      // Handle JSON String responses
+      else if (typeof apiData === "string") {
+        try {
+          const parsed = JSON.parse(apiData);
+          captionScore = parsed.score || 75;
+          grammar = parsed.grammar || 75;
+          inclusivity = parsed.inclusivity || 75;
+          tone = parsed.tone || 75;
+          remarks = parsed.remarks || "Analysis complete";
+        } catch {
+          remarks = apiData; 
+        }
+      }
+
+      const result: AnalysisResult = {
+        captionScore,
+        remarks,
+        status: captionScore >= 75 ? "Accepted" : "Rejected",
+        grammar,
+        inclusivity,
+        tone,
+      };
+
+      setAnalysisResult(result);
+      await submitPost(result);
+
+    } catch (error) {
+      console.warn("Using fallback analysis:", error);
+
+      // Start of "Smart" Fallback Logic
       let captionScore = 70;
       const length = caption.length;
 
@@ -143,27 +163,14 @@ export function CaptionsPage() {
       if (length < 20) captionScore -= 10;
       if (caption.includes("#")) captionScore += 5;
 
-      if (selectedPlatforms.includes("Instagram") && caption.includes("#")) {
-        captionScore += 5;
-      }
-
-      if (selectedPlatforms.includes("X") && length < 280) {
-        captionScore += 5;
-      }
-
-      if (selectedPlatforms.includes("Facebook") && length > 100) {
-        captionScore += 5;
-      }
-
-      if (caption.includes("?")) captionScore += 3;
-      if (caption.includes("!")) captionScore += 2;
+      if (selectedPlatforms.includes("Instagram") && caption.includes("#")) captionScore += 5;
+      if (selectedPlatforms.includes("X") && length < 280) captionScore += 5;
+      if (selectedPlatforms.includes("Facebook") && length > 100) captionScore += 5;
 
       captionScore = Math.max(0, Math.min(100, captionScore + (Math.floor(Math.random() * 8) - 4)));
 
       const status: "Accepted" | "Rejected" = captionScore >= 75 ? "Accepted" : "Rejected";
-
-      const remarks =
-        status === "Accepted"
+      const remarks = status === "Accepted"
           ? "The caption passed the auditing process. It is grammatically correct and inclusive."
           : "The caption did not meet the required standard. Improve grammar, inclusivity and tone.";
 
@@ -174,15 +181,10 @@ export function CaptionsPage() {
       if (!caption.includes("  ")) grammar += 5;
       if (caption[0] === caption[0]?.toUpperCase()) grammar += 5;
       if (/[.!?]$/.test(caption)) grammar += 5;
-
       if (!caption.toLowerCase().includes("guys")) inclusivity += 5;
-      if (caption.toLowerCase().includes("everyone") || caption.toLowerCase().includes("all")) {
-        inclusivity += 5;
-      }
-
+      if (caption.toLowerCase().includes("everyone") || caption.toLowerCase().includes("all")) inclusivity += 5;
       if (caption.includes("!")) tone += 5;
       if (caption.includes("?")) tone += 5;
-      if (caption.length > 50) tone += 5;
 
       const result: AnalysisResult = {
         captionScore,
