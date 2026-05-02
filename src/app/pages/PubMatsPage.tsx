@@ -13,6 +13,9 @@ import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatePicker } from "@/app/components/ui/date-picker";
 
+/**
+ * Utility to format dates for the SMARTech database/context
+ */
 const formatDateSafe = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
@@ -33,12 +36,15 @@ export default function PubMatsPage() {
   const { addPost } = usePosts();
   const { currentOffice, isLoading } = useAuth();
 
+  // Form State
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [postType, setPostType] = useState("");
   const [fileName, setFileName] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>([]);
   const [selectedCollaborators, setSelectedCollaborators] = useState<Collaborator[]>([]);
   const [postDate, setPostDate] = useState<Date | undefined>(undefined);
+  
+  // UI & Analysis State
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
@@ -49,14 +55,11 @@ export default function PubMatsPage() {
   const collaboratorRef = useRef<HTMLDivElement | null>(null);
 
   const postTypes = [
-    "event",
-    "announcement",
-    "information",
     "News",
     "Quotes",
     "Advisory",
     "Resolution",
-    "Hiring",
+    "Opportunity",
     "Photo",
     "Holiday",
     "Other",
@@ -65,6 +68,7 @@ export default function PubMatsPage() {
   const collaborators: Collaborator[] = ["SK", "YORP"];
   const platforms: Platform[] = ["Facebook", "Instagram", "X"];
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (collaboratorRef.current && !collaboratorRef.current.contains(event.target as Node)) {
@@ -80,6 +84,7 @@ export default function PubMatsPage() {
     return selectedCollaborators.join(", ");
   }, [selectedCollaborators]);
 
+  // Image Handlers
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -127,21 +132,24 @@ export default function PubMatsPage() {
     setSelectedCollaborators(selectedCollaborators.length === collaborators.length ? [] : collaborators);
   };
 
+  /**
+   * Primary Analysis logic connecting to Hugging Face
+   */
   const analyzeContent = async () => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
     try {
-      // Stringify collaborators for Python json.loads()
+      // Stringify collaborators for Python backend processing
       const collabsJson = JSON.stringify(selectedCollaborators);
 
+      // FIXED: Pointing to /run/predict to avoid 404
       const response = await fetch(
-        "https://lfaithb-smartech-pubmat-checker.hf.space/api/predict",
+        "https://lfaithb-smartech-pubmat-checker.hf.space/run/predict",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            // Order must match app.py inputs: [image, post_type, collaborators]
             data: [uploadedImage, postType, collabsJson],
           }),
         }
@@ -154,12 +162,14 @@ export default function PubMatsPage() {
 
       if (apiData.error) throw new Error(apiData.error);
 
+      // Extract scores and remarks with fallbacks
       const pubmatScore = apiData.score || apiData.pubmatScore || 0;
       const status = apiData.status || (pubmatScore >= 75 ? "Accepted" : "Rejected");
       const remarks = apiData.remarks || apiData.recommendation || "Analysis complete.";
 
       setAnalysisResult({ pubmatScore, remarks, status });
 
+      // Save to PostsContext for Dashboard visibility
       if (!isLoading && currentOffice) {
         const today = new Date().toISOString().split("T")[0];
         const auditDateStr = postDate ? formatDateSafe(postDate) : today;
@@ -208,6 +218,7 @@ export default function PubMatsPage() {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="space-y-6">
+        {/* Header Configuration */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">Select Post Type</label>
@@ -231,7 +242,7 @@ export default function PubMatsPage() {
             </button>
             {showTypeHelp && (
               <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                The post type helps the system evaluate the pubmat based on its expected purpose.
+                This helps SMARTech evaluate elements like hierarchy, logo placement, and clarity based on the {postType || 'selected'} format.
               </div>
             )}
           </div>
@@ -276,6 +287,7 @@ export default function PubMatsPage() {
           </div>
         </div>
 
+        {/* Upload Area */}
         <div className="bg-card rounded-lg border border-border p-6">
           <label className="block mb-4">
             <span className="text-lg font-semibold text-primary mb-2 block">PubMat Checker</span>
@@ -325,6 +337,7 @@ export default function PubMatsPage() {
           )}
         </div>
 
+        {/* Platform Selection */}
         <div className="bg-card rounded-lg border border-border p-6">
           <label className="block mb-4">
             <span className="text-lg font-semibold text-primary mb-2 block">Platform</span>
@@ -347,6 +360,7 @@ export default function PubMatsPage() {
           </div>
         </div>
 
+        {/* Date Selection */}
         <div className="bg-card rounded-lg border border-border p-6">
           <label className="block mb-4">
             <span className="text-lg font-semibold text-primary mb-2 block">Date</span>
@@ -355,6 +369,7 @@ export default function PubMatsPage() {
           <DatePicker date={postDate} onDateChange={setPostDate} placeholder="Pick a date" minDate={new Date()} />
         </div>
 
+        {/* Submit Action */}
         <div className="flex justify-end pt-2">
           <button
             type="button"
@@ -376,6 +391,7 @@ export default function PubMatsPage() {
           </button>
         </div>
 
+        {/* Results Display */}
         {analysisResult && (
           <div className={`rounded-lg border-2 p-6 animate-in fade-in slide-in-from-top-4 duration-300 ${
             analysisResult.status === "Accepted" ? "border-green-500 bg-green-50/10" : "border-red-500 bg-red-50/10"
@@ -397,7 +413,7 @@ export default function PubMatsPage() {
 
         {showSuccessMessage && (
           <div className="rounded-lg bg-green-500 p-4 text-center text-white text-sm font-medium">
-            Post submitted successfully!
+            Audit recorded successfully in post history!
           </div>
         )}
       </div>
