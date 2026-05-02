@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  CheckCircle,
-  AlertCircle,
-  Loader2,
-  TrendingUp,
-  Upload,
-} from "lucide-react";
+import { CheckCircle, AlertCircle, Loader2, TrendingUp, Upload } from "lucide-react";
 import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatePicker } from "@/app/components/ui/date-picker";
@@ -22,8 +16,7 @@ const callCaptionVerifier = async (caption: string) => {
   try {
     const app = await Client.connect("onjmm/smartech-caption-verifier");
     const result = await app.predict("/predict", [caption]);
-    console.log("Gradio API Response:", result);
-    return result.data && result.data[0] ? result.data[0] : null;
+    return result.data || null; // Returns the full [remarks, g, i, t] list
   } catch (error) {
     console.error("Gradio Connection Error:", error);
     return null; 
@@ -54,6 +47,49 @@ export function CaptionsPage() {
 
   const platforms: Platform[] = ["Facebook", "Instagram", "X", "TikTok"];
 
+  const analyzeContent = async () => {
+    if (isLoading || !currentOffice) {
+      alert("Office profile is still loading...");
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      const apiResponse = await callCaptionVerifier(caption);
+      
+      if (apiResponse && Array.isArray(apiResponse)) {
+        // Destructure indices from the Python list [remarks, g, i, t]
+        const remarks = String(apiResponse[0]);
+        const grammar = Math.round(Number(apiResponse[1]));
+        const inclusivity = Math.round(Number(apiResponse[2]));
+        const tone = Math.round(Number(apiResponse[3]));
+
+        // Calculate Weighted Global Score[cite: 1]
+        const captionScore = Math.floor((grammar * 0.4) + (inclusivity * 0.4) + (tone * 0.2));
+        
+        // Threshold check (75 is "Accepted" based on deployment metadata)[cite: 1]
+        const status = captionScore >= 75 ? "Accepted" : "Rejected";
+
+        const result: AnalysisResult = {
+          captionScore,
+          remarks,
+          status,
+          grammar,
+          inclusivity,
+          tone,
+        };
+
+        setAnalysisResult(result);
+        await submitPost(result);
+      }
+    } catch (error) {
+      console.error("Analysis failed:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const submitPost = async (result: AnalysisResult) => {
     const today = new Date().toISOString().split("T")[0];
     const auditDateStr = postDate ? formatDateSafe(postDate) : today;
@@ -82,82 +118,6 @@ export function CaptionsPage() {
     setTimeout(() => setShowSuccessMessage(false), 3000);
   };
 
-  const analyzeContent = async () => {
-    if (isLoading || !currentOffice) {
-      alert("Office profile is still loading. Please wait a moment and try again.");
-      return;
-    }
-
-    setIsAnalyzing(true);
-
-    try {
-      const apiResponse = await callCaptionVerifier(caption);
-      let apiRemarks = (apiResponse && Array.isArray(apiResponse) && apiResponse[0]) ? apiResponse[0] : "";
-      
-      const result = generateAnalysisResult(caption, apiRemarks);
-      setAnalysisResult(result);
-      await submitPost(result);
-
-    } catch (error) {
-      const result = generateAnalysisResult(caption);
-      setAnalysisResult(result);
-      await submitPost(result);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
-
-  /**
-   * REFINED SCORING LOGIC
-   * Fixes the "same score for long captions" issue by using granular scaling.
-   */
-  const generateAnalysisResult = (text: string, customRemarks?: string): AnalysisResult => {
-    let baseScore = 80;
-    const len = text.length;
-
-    // 1. Granular Length Scaling: Penalize excessive length progressively[cite: 1]
-    if (len > 300) {
-      const penalty = Math.floor((len - 300) / 50); // Lose 1 point for every 50 chars over 300
-      baseScore -= Math.min(20, penalty);
-    } else if (len < 40) {
-      baseScore -= 15;
-    }
-
-    // 2. Metric Breakdown based on model training[cite: 1]
-    // Grammar: Penalize double spaces as found in training deduplication logic[cite: 1]
-    let grammar = 85;
-    if (text.includes("  ")) grammar -= 15; 
-    if (!/[.!?]$/.test(text)) grammar -= 10;
-
-    // Inclusivity: Binary check inspired by the Inclusivity Model labels[cite: 1]
-    let inclusivity = 90;
-    const exclusionaryTerms = ["guys", "manpower", "chairman"];
-    if (exclusionaryTerms.some(term => text.toLowerCase().includes(term))) {
-      inclusivity -= 25;
-    }
-
-    let tone = 80;
-    if (text.includes("!")) tone += 5;
-    if (text.length > 500) tone -= 10; // Long-windedness affects tone
-
-    // Final Weighted Score
-    const captionScore = Math.max(0, Math.min(100, Math.floor((grammar * 0.4) + (inclusivity * 0.4) + (tone * 0.2))));
-    
-    // Status follows the 75% threshold identified in deployment[cite: 1]
-    const status = captionScore >= 75 ? "Accepted" : "Rejected";
-
-    return {
-      captionScore,
-      remarks: customRemarks || (status === "Accepted" 
-        ? "The caption passed the auditing process. It is grammatically correct and inclusive."
-        : "The caption did not meet the required standard. Please review the length, inclusivity, or grammar."),
-      status,
-      grammar: Math.min(100, grammar),
-      inclusivity: Math.min(100, inclusivity),
-      tone: Math.min(100, tone),
-    };
-  };
-
   const handleStartNew = () => {
     setCaption("");
     setSelectedPlatforms([]);
@@ -166,7 +126,6 @@ export function CaptionsPage() {
     setShowSuccessMessage(false);
   };
 
-  // --- ORIGINAL UI REVERTED BELOW ---
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="bg-card rounded-lg border border-border p-6">
@@ -174,7 +133,6 @@ export function CaptionsPage() {
           <span className="text-lg font-semibold text-primary block">Caption Verifier</span>
           <span className="text-sm text-muted-foreground block mb-4">Write or paste your caption</span>
         </label>
-
         <textarea
           value={caption}
           onChange={(e) => setCaption(e.target.value)}
@@ -182,7 +140,6 @@ export function CaptionsPage() {
           rows={6}
           className="w-full px-4 py-3 border border-border rounded-lg bg-background focus:ring-2 focus:ring-primary resize-none"
         />
-
         <div className="text-xs text-right text-muted-foreground mt-2">{caption.length} characters</div>
       </div>
 
@@ -191,7 +148,6 @@ export function CaptionsPage() {
           <span className="text-lg font-semibold text-primary mb-2 block">Platform</span>
           <span className="text-sm text-muted-foreground block mb-4">Select all platforms for your post</span>
         </label>
-
         <div className="space-y-3">
           {platforms.map((p) => (
             <label key={p} className="flex items-center gap-3">
@@ -199,11 +155,8 @@ export function CaptionsPage() {
                 type="checkbox"
                 checked={selectedPlatforms.includes(p)}
                 onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedPlatforms([...selectedPlatforms, p]);
-                  } else {
-                    setSelectedPlatforms(selectedPlatforms.filter((i) => i !== p));
-                  }
+                  if (e.target.checked) setSelectedPlatforms([...selectedPlatforms, p]);
+                  else setSelectedPlatforms(selectedPlatforms.filter((i) => i !== p));
                 }}
                 className="h-4 w-4 appearance-none rounded border border-border bg-background checked:bg-primary checked:border-primary relative after:content-[''] after:absolute after:hidden after:left-1/2 after:top-1/2 after:w-[4px] after:h-[8px] after:border-white after:border-r-[2.5px] after:border-b-[2.5px] after:rotate-45 after:-translate-x-1/2 after:-translate-y-[60%] checked:after:block"
               />
@@ -218,12 +171,7 @@ export function CaptionsPage() {
           <span className="text-lg font-semibold text-primary mb-2 block">Date</span>
           <span className="text-sm text-muted-foreground block mb-4">Select posting date</span>
         </label>
-        <DatePicker
-          date={postDate}
-          onDateChange={setPostDate}
-          placeholder="Pick a date"
-          minDate={new Date()}
-        />
+        <DatePicker date={postDate} onDateChange={setPostDate} placeholder="Pick a date" minDate={new Date()} />
       </div>
 
       <div className="flex justify-end">
@@ -232,11 +180,7 @@ export function CaptionsPage() {
           disabled={!caption || selectedPlatforms.length === 0 || !postDate || isAnalyzing}
           className="flex items-center gap-2 bg-primary text-white px-6 py-3 rounded-lg disabled:opacity-50"
         >
-          {isAnalyzing ? (
-            <><Loader2 className="animate-spin h-4 w-4" /> Analyzing...</>
-          ) : (
-            <><TrendingUp className="h-4 w-4" /> Analyze</>
-          )}
+          {isAnalyzing ? <><Loader2 className="animate-spin h-4 w-4" /> Analyzing...</> : <><TrendingUp className="h-4 w-4" /> Analyze</>}
         </button>
       </div>
 
@@ -276,25 +220,6 @@ export function CaptionsPage() {
             <div>
               <h4 className="mb-2 text-sm font-semibold text-primary">Remarks:</h4>
               <p className="text-sm leading-relaxed text-foreground">{analysisResult.remarks}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 p-4 text-sm">
-              <div>
-                <p className="mb-1 text-muted-foreground">Platform</p>
-                <p className="font-medium text-foreground">{selectedPlatforms.join(", ")}</p>
-              </div>
-              <div>
-                <p className="mb-1 text-muted-foreground">Office</p>
-                <p className="font-medium text-foreground">{currentOffice || "N/A"}</p>
-              </div>
-              <div>
-                <p className="mb-1 text-muted-foreground">Posting Date</p>
-                <p className="font-medium text-foreground">{postDate ? formatDateSafe(postDate) : "N/A"}</p>
-              </div>
-              <div>
-                <p className="mb-1 text-muted-foreground">Audit Type</p>
-                <p className="font-medium text-foreground">Caption</p>
-              </div>
             </div>
           </div>
         </div>
