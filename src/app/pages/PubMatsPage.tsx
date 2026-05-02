@@ -284,7 +284,7 @@ export function PubMatsPage() {
         case "Resolution":
           pubmatScore += 9;
           break;
-        case "Hiring":
+        case "Opportunity":
           pubmatScore += 8;
           break;
         case "Photo":
