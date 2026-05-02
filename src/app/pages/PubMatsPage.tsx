@@ -152,13 +152,24 @@ export default function PubMatsPage() {
         collaborators_text: JSON.stringify(selectedCollaborators),
       });
 
-      // Flexible extraction to prevent "0" scores and false rejections
-      const apiData = (result.data as any)[0];
-      const rawScore = apiData.score ?? apiData.pubmatScore ?? 0;
-      const pubmatScore = typeof rawScore === "string" ? parseFloat(rawScore) : rawScore;
+      // Flexible extraction to handle various possible API response structures
+      const apiData = Array.isArray(result.data) ? result.data[0] : result.data;
       
-      const status = apiData.status || (pubmatScore >= 75 ? "Accepted" : "Rejected");
-      const remarks = apiData.remarks || apiData.recommendation || "Analysis complete.";
+      // Look for any variation of 'score' returned by checker.py
+      const rawScore = apiData?.score ?? 
+                       apiData?.pubmatScore ?? 
+                       apiData?.final_score ?? 0;
+                       
+      const pubmatScore = typeof rawScore === "string" ? parseFloat(rawScore) : Number(rawScore);
+      
+      // Look for any variation of remarks or recommendations
+      const remarks = apiData?.remarks || 
+                      apiData?.recommendation || 
+                      apiData?.feedback || 
+                      apiData?.details || 
+                      "Analysis complete.";
+
+      const status = apiData?.status || (pubmatScore >= 75 ? "Accepted" : "Rejected");
 
       setAnalysisResult({ pubmatScore, remarks, status });
 
@@ -229,8 +240,10 @@ export default function PubMatsPage() {
               onClick={() => setShowTypeHelp((prev) => !prev)}
               className="flex w-full items-center gap-2 rounded-lg border border-border bg-card px-4 py-3 text-left text-sm text-foreground hover:bg-muted/40"
             >
-              <Info className="h-4 w-4 text-primary" />
-              <span>What does this post type check?</span>
+              <span className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-primary" />
+                <span>What does this post type check?</span>
+              </span>
             </button>
             {showTypeHelp && (
               <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
