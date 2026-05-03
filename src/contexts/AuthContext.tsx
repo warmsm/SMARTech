@@ -35,6 +35,20 @@ const AuthContext = createContext<AuthContextType | undefined>(
   undefined,
 );
 
+const AUTH_TIMEOUT_MS = 8000;
+
+const withTimeout = async <T,>(
+  promise: Promise<T>,
+  fallback: T,
+): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      window.setTimeout(() => resolve(fallback), AUTH_TIMEOUT_MS);
+    }),
+  ]);
+};
+
 export function AuthProvider({
   children,
 }: {
@@ -45,15 +59,23 @@ export function AuthProvider({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const loadProfile = async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, email, office, role")
-      .eq("id", userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await withTimeout(
+        supabase
+          .from("profiles")
+          .select("id, email, office, role")
+          .eq("id", userId)
+          .maybeSingle(),
+        { data: null, error: null } as any,
+      );
 
-    if (data && !error) {
-      setProfile(data as Profile);
-    } else {
+      if (data && !error) {
+        setProfile(data as Profile);
+      } else {
+        setProfile(null);
+      }
+    } catch (error) {
+      console.error("Failed to load user profile:", error);
       setProfile(null);
     }
   };
@@ -62,16 +84,28 @@ export function AuthProvider({
     const initializeAuth = async () => {
       setIsLoading(true);
 
-      const { data } = await supabase.auth.getSession();
+      try {
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          { data: { session: null } } as any,
+        );
 
-      setSession(data.session);
-      setUser(data.session?.user ?? null);
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
 
-      if (data.session?.user) {
-        await loadProfile(data.session.user.id);
+        if (data.session?.user) {
+          await loadProfile(data.session.user.id);
+        } else {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error("Failed to initialize auth:", error);
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+      } finally {
+        setIsLoading(false);
       }
-
-      setIsLoading(false);
     };
 
     initializeAuth();
@@ -79,12 +113,13 @@ export function AuthProvider({
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      async (_event, newSession) => {
+      (_event, newSession) => {
         setSession(newSession);
         setUser(newSession?.user ?? null);
+        setIsLoading(false);
 
         if (newSession?.user) {
-          await loadProfile(newSession.user.id);
+          void loadProfile(newSession.user.id);
         } else {
           setProfile(null);
         }

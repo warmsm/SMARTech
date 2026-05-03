@@ -111,9 +111,11 @@ export const auditPubmat = async ({
   postType: string;
   collaborators: string[];
 }) => {
+  const backendPostType =
+    postType.toLowerCase() === "hiring" ? "Opportunity" : postType;
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("post_type", postType);
+  formData.append("post_type", backendPostType);
   collaborators.forEach((collaborator) => {
     formData.append("collaborators", collaborator);
   });
