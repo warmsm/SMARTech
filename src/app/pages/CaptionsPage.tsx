@@ -9,71 +9,13 @@ import {
 import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { verifyCaption } from "@/app/services/backendApi";
 
 const formatDateSafe = (date: Date): string => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
-};
-
-const callCaptionVerifier = async (caption: string) => {
-  const sessionHash =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().replace(/-/g, "").slice(0, 12)
-      : Math.random().toString(36).slice(2);
-
-  const joinResponse = await fetch(
-    "https://onjmm-smartech-caption-verifier.hf.space/queue/join",
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        data: [caption],
-        event_data: null,
-        fn_index: 0,
-        session_hash: sessionHash,
-      }),
-    },
-  );
-
-  if (!joinResponse.ok) {
-    throw new Error("Failed to join caption verifier queue");
-  }
-
-  const dataResponse = await fetch(
-    `https://onjmm-smartech-caption-verifier.hf.space/queue/data?session_hash=${sessionHash}`,
-  );
-
-  if (!dataResponse.ok) {
-    throw new Error("Failed to fetch caption verifier result");
-  }
-
-  const eventText = await dataResponse.text();
-  const eventBlocks = eventText
-    .split("\n\n")
-    .map((block) => block.trim())
-    .filter(Boolean);
-
-  for (const block of eventBlocks) {
-    if (!block.startsWith("data:")) continue;
-
-    const payload = JSON.parse(block.replace(/^data:\s*/, ""));
-
-    if (payload.msg === "process_completed") {
-      if (!payload.success) {
-        throw new Error("Caption verifier failed to process");
-      }
-
-      return payload.output?.data?.[0];
-    }
-  }
-
-  throw new Error(
-    "Caption verifier returned no completed result",
-  );
 };
 
 type Platform = "Facebook" | "Instagram" | "X" | "TikTok";
@@ -153,56 +95,7 @@ export function CaptionsPage() {
     setIsAnalyzing(true);
 
     try {
-      const apiData = await callCaptionVerifier(caption);
-
-      let captionScore = 70;
-      let grammar = 70;
-      let inclusivity = 70;
-      let tone = 70;
-      let status: "Accepted" | "Rejected" = "Rejected";
-      let remarks = "Analysis completed";
-
-      if (typeof apiData === "object" && apiData !== null) {
-        captionScore =
-          apiData.score || apiData.captionScore || 70;
-        grammar = apiData.grammar || 70;
-        inclusivity = apiData.inclusivity || 70;
-        tone = apiData.tone || 70;
-        status =
-          apiData.status ||
-          (captionScore >= 75 ? "Accepted" : "Rejected");
-        remarks =
-          apiData.remarks ||
-          apiData.recommendation ||
-          "Analysis completed";
-      } else if (typeof apiData === "string") {
-        try {
-          const parsed = JSON.parse(apiData);
-          captionScore =
-            parsed.score || parsed.captionScore || 70;
-          grammar = parsed.grammar || 70;
-          inclusivity = parsed.inclusivity || 70;
-          tone = parsed.tone || 70;
-          status =
-            parsed.status ||
-            (captionScore >= 75 ? "Accepted" : "Rejected");
-          remarks =
-            parsed.remarks || parsed.recommendation || apiData;
-        } catch {
-          remarks = apiData;
-          status = captionScore >= 75 ? "Accepted" : "Rejected";
-        }
-      }
-
-      const result = {
-        captionScore,
-        remarks,
-        status,
-        grammar,
-        inclusivity,
-        tone,
-      };
-
+      const result = await verifyCaption(caption);
       setAnalysisResult(result);
       await submitPost(result);
     } catch (error) {
@@ -554,3 +447,5 @@ export function CaptionsPage() {
     </div>
   );
 }
+
+export default CaptionsPage;
