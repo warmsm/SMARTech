@@ -62,6 +62,7 @@ const renderRemarks = (remarks?: string) => {
 };
 
 interface AnalysisResult {
+  fileName?: string;
   pubmatScore: number;
   remarks: string;
   status: "Accepted" | "Rejected";
@@ -77,14 +78,10 @@ export function PubMatsPage() {
   const { addPost } = usePosts();
   const { currentOffice, isLoading } = useAuth();
 
-  const [uploadedImage, setUploadedImage] = useState<
-    string | null
-  >(null);
-  const [uploadedFile, setUploadedFile] = useState<File | null>(
-    null,
-  );
+  const [uploadedImages, setUploadedImages] = useState<
+    Array<{ file: File; preview: string }>
+  >([]);
   const [postType, setPostType] = useState("");
-  const [fileName, setFileName] = useState("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<
     Platform[]
   >([]);
@@ -94,8 +91,9 @@ export function PubMatsPage() {
     undefined,
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] =
-    useState<AnalysisResult | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<
+    AnalysisResult[]
+  >([]);
   const [showSuccessMessage, setShowSuccessMessage] =
     useState(false);
   const [isCollaboratorOpen, setIsCollaboratorOpen] =
@@ -104,7 +102,8 @@ export function PubMatsPage() {
   const [isDragging, setIsDragging] = useState(false);
 
   const collaboratorRef = useRef<HTMLDivElement | null>(null);
-  const isAuditLocked = Boolean(analysisResult) || isAnalyzing;
+  const isAuditLocked = analysisResults.length > 0 || isAnalyzing;
+  const uploadedImageCount = uploadedImages.length;
 
   const postTypes = [
     "News",
@@ -196,31 +195,43 @@ export function PubMatsPage() {
     return selectedCollaborators.join(", ");
   }, [selectedCollaborators]);
 
+  const appendImageFiles = (fileList: FileList | File[]) => {
+    if (isAuditLocked) return;
+
+    const files = Array.from(fileList).filter((file) =>
+      file.type.startsWith("image/"),
+    );
+
+    if (files.length === 0) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImages((prev) => [
+          ...prev,
+          { file, preview: reader.result as string },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleImageUpload = (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
-    if (isAuditLocked) return;
+    if (!event.target.files) return;
 
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    setFileName(file.name);
-    setUploadedFile(file);
-
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setUploadedImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    appendImageFiles(event.target.files);
+    event.target.value = "";
   };
 
-  const handleRemoveImage = () => {
+  const handleRemoveImage = (index: number) => {
     if (isAuditLocked) return;
 
-    setUploadedImage(null);
-    setUploadedFile(null);
-    setFileName("");
-    setAnalysisResult(null);
+    setUploadedImages((prev) =>
+      prev.filter((_, itemIndex) => itemIndex !== index),
+    );
+    setAnalysisResults([]);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -243,22 +254,7 @@ export function PubMatsPage() {
     if (isAuditLocked) return;
     setIsDragging(false);
 
-    const files = e.dataTransfer.files;
-    if (files && files[0]) {
-      const file = files[0];
-
-      // Check if it's an image
-      if (file.type.startsWith("image/")) {
-        setFileName(file.name);
-        setUploadedFile(file);
-
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setUploadedImage(reader.result as string);
-        };
-        reader.readAsDataURL(file);
-      }
-    }
+    appendImageFiles(e.dataTransfer.files);
   };
 
   const toggleCollaborator = (value: Collaborator) => {
@@ -289,104 +285,109 @@ export function PubMatsPage() {
       return;
     }
 
-    if (!uploadedFile) {
-      alert("Please upload a pubmat image first.");
+    if (uploadedImages.length === 0) {
+      alert("Please upload at least one pubmat image first.");
       return;
     }
 
     setIsAnalyzing(true);
+    const results: AnalysisResult[] = [];
+    const today = new Date().toISOString().split("T")[0];
+    const postingDateStr = postDate
+      ? formatDateSafe(postDate)
+      : today;
 
     try {
-      const result = await auditPubmat({
-        file: uploadedFile,
-        postType,
-        collaborators: selectedCollaborators,
-      });
-      const { pubmatScore, remarks, status, annotatedImage } = result;
+      for (const [index, image] of uploadedImages.entries()) {
+        try {
+          const result = await auditPubmat({
+            file: image.file,
+            postType,
+            collaborators: selectedCollaborators,
+          });
+          const { pubmatScore, remarks, status, annotatedImage } = result;
+          const resultWithFile = {
+            ...result,
+            fileName: image.file.name,
+          };
 
-      setAnalysisResult(result);
+          results.push(resultWithFile);
 
-      const today = new Date().toISOString().split("T")[0];
-      const postingDateStr = postDate
-        ? formatDateSafe(postDate)
-        : today;
+          await addPost({
+            id: `POST-${Date.now().toString().slice(-6)}${index}`,
+            platform:
+              selectedPlatforms.length === 1
+                ? selectedPlatforms[0]
+                : selectedPlatforms,
+            caption: "",
+            thumbnail: annotatedImage || image.preview,
+            score: pubmatScore,
+            pubmatScore,
+            status,
+            recommendation: remarks,
+            date: postingDateStr,
+            office: currentOffice,
+            submissionDate: today,
+            lastUpdated: today,
+            auditFocus: "pubmat",
+            centralReviewStatus: "Pending Review",
+            appealStatus: "Not Appealed",
+            pubmatType: postType,
+          });
+        } catch (error) {
+          console.warn(
+            `Pubmat checker failed for ${image.file.name}:`,
+            error,
+          );
 
-      await addPost({
-        id: `POST-${Date.now().toString().slice(-6)}`,
-        platform:
-          selectedPlatforms.length === 1
-            ? selectedPlatforms[0]
-            : selectedPlatforms,
-        caption: "",
-        thumbnail: annotatedImage || uploadedImage || undefined,
-        score: pubmatScore,
-        pubmatScore,
-        status,
-        recommendation: remarks,
-        date: postingDateStr,
-        office: currentOffice,
-        submissionDate: today,
-        lastUpdated: today,
-        auditFocus: "pubmat",
-        centralReviewStatus: "Pending Review",
-        appealStatus: "Not Appealed",
-        pubmatType: postType,
-      });
+          const pubmatScore = 0;
+          const status: "Accepted" | "Rejected" = "Rejected";
+          const remarks =
+            error instanceof Error
+              ? `Pubmat checker failed for ${image.file.name}: ${error.message}. Please try again after the backend is fixed.`
+              : `Pubmat checker failed for ${image.file.name}. Please try again after the backend is fixed.`;
 
-      setShowSuccessMessage(true);
-      setTimeout(() => setShowSuccessMessage(false), 3000);
-    } catch (error) {
-      console.warn(
-        "Pubmat checker API unavailable:",
-        error,
-      );
+          const failedResult = {
+            fileName: image.file.name,
+            pubmatScore,
+            remarks,
+            status,
+            criteria: [
+              {
+                label: "Checker Response",
+                status: "Not Present" as const,
+                detail: remarks,
+              },
+            ],
+          };
 
-      const pubmatScore = 0;
-      const status: "Accepted" | "Rejected" = "Rejected";
-      const remarks =
-        error instanceof Error
-          ? `Pubmat checker failed: ${error.message}. Please try again after the backend is fixed.`
-          : "Pubmat checker failed. Please try again after the backend is fixed.";
+          await addPost({
+            id: `POST-${Date.now().toString().slice(-6)}${index}`,
+            platform:
+              selectedPlatforms.length === 1
+                ? selectedPlatforms[0]
+                : selectedPlatforms,
+            caption: "",
+            thumbnail: image.preview,
+            score: pubmatScore,
+            pubmatScore,
+            status,
+            recommendation: remarks,
+            date: postingDateStr,
+            office: currentOffice,
+            submissionDate: today,
+            lastUpdated: today,
+            auditFocus: "pubmat",
+            centralReviewStatus: "Pending Review",
+            appealStatus: "Not Appealed",
+            pubmatType: postType,
+          });
 
-      setAnalysisResult({
-        pubmatScore,
-        remarks,
-        status,
-        criteria: [
-          {
-            label: "Checker Response",
-            status: "Not Present",
-            detail: remarks,
-          },
-        ],
-      });
+          results.push(failedResult);
+        }
+      }
 
-      const today = new Date().toISOString().split("T")[0];
-      const postingDateStr = postDate
-        ? formatDateSafe(postDate)
-        : today;
-
-      await addPost({
-        id: `POST-${Date.now().toString().slice(-6)}`,
-        platform:
-          selectedPlatforms.length === 1
-            ? selectedPlatforms[0]
-            : selectedPlatforms,
-        caption: "",
-        thumbnail: uploadedImage || undefined,
-        score: pubmatScore,
-        pubmatScore,
-        status,
-        recommendation: remarks,
-        date: postingDateStr,
-        office: currentOffice,
-        submissionDate: today,
-        lastUpdated: today,
-        auditFocus: "pubmat",
-        centralReviewStatus: "Pending Review",
-        appealStatus: "Not Appealed",
-        pubmatType: postType,
-      });
+      setAnalysisResults(results);
 
       setShowSuccessMessage(true);
       setTimeout(() => setShowSuccessMessage(false), 3000);
@@ -396,14 +397,12 @@ export function PubMatsPage() {
   };
 
   const handleStartNewAudit = () => {
-    setUploadedImage(null);
-    setUploadedFile(null);
-    setFileName("");
+    setUploadedImages([]);
     setPostType("");
     setSelectedPlatforms([]);
     setSelectedCollaborators([]);
     setPostDate(undefined);
-    setAnalysisResult(null);
+    setAnalysisResults([]);
     setShowSuccessMessage(false);
   };
 
@@ -548,16 +547,17 @@ export function PubMatsPage() {
               PubMat Checker
             </span>
             <span className="text-sm text-muted-foreground block mb-4">
-              Upload your publication material (PNG, JPG, or
+              Upload one or more publication materials (PNG, JPG, or
               JPEG)
             </span>
           </label>
 
-          {!uploadedImage ? (
+          {uploadedImages.length === 0 ? (
             <div className="relative">
               <input
                 type="file"
                 accept="image/*"
+                multiple
                 onChange={handleImageUpload}
                 disabled={isAuditLocked}
                 className="hidden"
@@ -599,26 +599,39 @@ export function PubMatsPage() {
                   <div className="flex items-center gap-3">
                     <FileImage className="h-5 w-5 text-primary" />
                     <span className="text-sm font-medium text-foreground">
-                      {fileName}
+                      {uploadedImageCount} file
+                      {uploadedImageCount === 1 ? "" : "s"} selected
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    disabled={isAuditLocked}
-                    className="text-sm font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border overflow-hidden bg-muted/20">
-                <img
-                  src={uploadedImage}
-                  alt="Uploaded pubmat"
-                  className="mx-auto max-h-[500px] w-auto object-contain"
-                />
+              <div className="grid gap-4 sm:grid-cols-2">
+                {uploadedImages.map((image, index) => (
+                  <div
+                    key={`${image.file.name}-${index}`}
+                    className="overflow-hidden rounded-lg border border-border bg-muted/20"
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-border bg-background px-3 py-2">
+                      <span className="truncate text-xs font-medium text-foreground">
+                        {image.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveImage(index)}
+                        disabled={isAuditLocked}
+                        className="shrink-0 text-xs font-medium text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <img
+                      src={image.preview}
+                      alt={`Uploaded pubmat ${index + 1}`}
+                      className="mx-auto h-64 w-full object-contain"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -698,7 +711,7 @@ export function PubMatsPage() {
             type="button"
             onClick={analyzeContent}
             disabled={
-              !uploadedImage ||
+              uploadedImages.length === 0 ||
               !postType ||
               selectedPlatforms.length === 0 ||
               !postDate ||
@@ -732,14 +745,17 @@ export function PubMatsPage() {
           </div>
         )}
 
-        {analysisResult && !isAnalyzing && (
-          <div
-            className={`rounded-lg border-2 bg-card p-6 animate-in fade-in slide-in-from-top-4 duration-300 ${
-              analysisResult.status === "Accepted"
-                ? "border-green-500 bg-green-50/50"
-                : "border-red-500 bg-red-50/50"
-            }`}
-          >
+        {analysisResults.length > 0 && !isAnalyzing && (
+          <div className="space-y-4">
+            {analysisResults.map((analysisResult, index) => (
+              <div
+                key={`${analysisResult.fileName || "result"}-${index}`}
+                className={`rounded-lg border-2 bg-card p-6 animate-in fade-in slide-in-from-top-4 duration-300 ${
+                  analysisResult.status === "Accepted"
+                    ? "border-green-500 bg-green-50/50"
+                    : "border-red-500 bg-red-50/50"
+                }`}
+              >
             <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 {analysisResult.status === "Accepted" ? (
@@ -753,6 +769,9 @@ export function PubMatsPage() {
                   </h3>
                   <p className="text-xs text-muted-foreground">
                     Content Analysis Complete
+                    {analysisResult.fileName
+                      ? ` for ${analysisResult.fileName}`
+                      : ""}
                   </p>
                 </div>
               </div>
@@ -857,6 +876,8 @@ export function PubMatsPage() {
                 </div>
               </div>
             </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -868,7 +889,7 @@ export function PubMatsPage() {
           </div>
         )}
 
-        {analysisResult && !isAnalyzing && (
+        {analysisResults.length > 0 && !isAnalyzing && (
           <div className="flex justify-center pt-2">
             <button
               type="button"
