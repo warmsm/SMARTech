@@ -24,10 +24,13 @@ const formatDateSafe = (date: Date): string => {
 type Platform = "Facebook" | "Instagram" | "X";
 type Collaborator = "SK" | "YORP";
 
+const pubmatRemarkLabels =
+  "logo order|logos|pubmat quality|watermark|template|sgd signature|checker response|correct logos present|correct logo order";
+
 const getRemarkLines = (remarks?: string) => {
   return (remarks || "")
     .replace(
-      /\s+(?=([A-Za-z][A-Za-z\s/()-]*):)/g,
+      new RegExp(`\\s+(?=(${pubmatRemarkLabels}):)`, "gi"),
       "\n",
     )
     .split(/[;\n]+/)
@@ -36,29 +39,87 @@ const getRemarkLines = (remarks?: string) => {
 };
 
 const renderRemarks = (remarks?: string) => {
-  return getRemarkLines(remarks).map((line, index) => {
+  const rows = getRemarkLines(remarks).map((line) => {
     const separatorIndex = line.indexOf(":");
     const hasLabel = separatorIndex > -1;
-    const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
+    const label = hasLabel ? line.slice(0, separatorIndex) : "Summary";
     const detail = hasLabel
       ? line.slice(separatorIndex + 1).trimStart()
       : line;
 
-    return (
-      <div key={`${line}-${index}`}>
-        {hasLabel ? (
-          <>
-            <span className="font-semibold text-foreground">
-              {label}
-            </span>{" "}
-            <span>{detail}</span>
-          </>
-        ) : (
-          <span>{detail}</span>
-        )}
-      </div>
-    );
+    return { label, detail };
   });
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40">
+          <tr>
+            <th className="w-1/3 px-3 py-2 text-left font-semibold text-foreground">
+              Criteria
+            </th>
+            <th className="px-3 py-2 text-left font-semibold text-foreground">
+              Remark
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((row, index) => (
+            <tr key={`${row.label}-${index}`}>
+              <td className="px-3 py-2 align-top font-semibold text-foreground">
+                {row.label}
+              </td>
+              <td className="px-3 py-2 align-top text-muted-foreground">
+                {row.detail}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const renderCriteriaTable = (criteria: NonNullable<AnalysisResult["criteria"]>) => {
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40">
+          <tr>
+            <th className="w-1/3 px-3 py-2 text-left font-semibold text-foreground">
+              Criteria
+            </th>
+            <th className="px-3 py-2 text-left font-semibold text-foreground">
+              Remark
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {criteria.map((criterion) => (
+            <tr key={criterion.label}>
+              <td className="px-3 py-2 align-top font-semibold text-foreground">
+                {criterion.label}
+              </td>
+              <td className="px-3 py-2 align-top text-muted-foreground">
+                <span
+                  className={
+                    criterion.status === "Present"
+                      ? "font-semibold text-green-700"
+                      : "font-semibold text-red-700"
+                  }
+                >
+                  {criterion.status}
+                </span>
+                {criterion.detail ? ` - ${criterion.detail}` : ""}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 interface AnalysisResult {
@@ -793,34 +854,7 @@ export function PubMatsPage() {
                     <h4 className="mb-3 text-sm font-semibold text-primary">
                       Criteria:
                     </h4>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {analysisResult.criteria.map((criterion) => (
-                        <div
-                          key={criterion.label}
-                          className="rounded-lg bg-muted/30 p-4"
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-foreground">
-                              {criterion.label}
-                            </p>
-                            <span
-                              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                                criterion.status === "Present"
-                                  ? "bg-green-100 text-green-700"
-                                  : "bg-red-100 text-red-700"
-                              }`}
-                            >
-                              {criterion.status}
-                            </span>
-                          </div>
-                          {criterion.detail && (
-                            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                              {criterion.detail}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                    {renderCriteriaTable(analysisResult.criteria)}
                   </div>
                 )}
 

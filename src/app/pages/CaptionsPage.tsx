@@ -32,29 +32,47 @@ const getRemarkLines = (remarks?: string) => {
 };
 
 const renderRemarks = (remarks?: string) => {
-  return getRemarkLines(remarks).map((line, index) => {
+  const rows = getRemarkLines(remarks).map((line) => {
     const separatorIndex = line.indexOf(":");
     const hasLabel = separatorIndex > -1;
-    const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
+    const label = hasLabel ? line.slice(0, separatorIndex) : "Summary";
     const detail = hasLabel
       ? line.slice(separatorIndex + 1).trimStart()
       : line;
 
-    return (
-      <div key={`${line}-${index}`}>
-        {hasLabel ? (
-          <>
-            <span className="font-semibold text-foreground">
-              {label}
-            </span>{" "}
-            <span>{detail}</span>
-          </>
-        ) : (
-          <span>{detail}</span>
-        )}
-      </div>
-    );
+    return { label, detail };
   });
+
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border">
+      <table className="w-full text-sm">
+        <thead className="bg-muted/40">
+          <tr>
+            <th className="w-1/3 px-3 py-2 text-left font-semibold text-foreground">
+              Criteria
+            </th>
+            <th className="px-3 py-2 text-left font-semibold text-foreground">
+              Remark
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {rows.map((row, index) => (
+            <tr key={`${row.label}-${index}`}>
+              <td className="px-3 py-2 align-top font-semibold text-foreground">
+                {row.label}
+              </td>
+              <td className="px-3 py-2 align-top text-muted-foreground">
+                {row.detail}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 };
 
 interface AnalysisResult {

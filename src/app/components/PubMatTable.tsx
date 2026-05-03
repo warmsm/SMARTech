@@ -63,10 +63,13 @@ export function PubMatTable({ posts }: PubMatTableProps) {
     return platform;
   };
 
+  const pubmatRemarkLabels =
+    "logo order|logos|pubmat quality|watermark|template|sgd signature|checker response|correct logos present|correct logo order";
+
   const getRemarkLines = (remarks?: string) => {
     return (remarks || "")
       .replace(
-        /\s+(?=([A-Za-z][A-Za-z\s/()-]*):)/g,
+        new RegExp(`\\s+(?=(${pubmatRemarkLabels}):)`, "gi"),
         "\n",
       )
       .split(/[;\n]+/)
