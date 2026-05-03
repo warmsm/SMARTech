@@ -62,6 +62,41 @@ export function CaptionTable({ posts }: CaptionTableProps) {
     return platform;
   };
 
+  const getRemarkLines = (remarks?: string) => {
+    return (remarks || "")
+      .split(/[;\n]+/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+
+  const renderRemarks = (remarks?: string) => {
+    const lines = getRemarkLines(remarks);
+
+    if (lines.length === 0) return null;
+
+    return lines.map((line) => {
+      const separatorIndex = line.indexOf(":");
+      const hasLabel = separatorIndex > -1;
+      const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
+      const detail = hasLabel ? line.slice(separatorIndex + 1).trimStart() : line;
+
+      return (
+        <div key={line}>
+          {hasLabel ? (
+            <>
+              <span className="font-semibold text-foreground">
+                {label}
+              </span>{" "}
+              <span>{detail}</span>
+            </>
+          ) : (
+            <span>{detail}</span>
+          )}
+        </div>
+      );
+    });
+  };
+
   const handleSort = (column: SortColumn) => {
     if (sortColumn === column) {
       setSortDirection(
@@ -302,9 +337,9 @@ export function CaptionTable({ posts }: CaptionTableProps) {
             <h3 className="text-lg font-bold mb-4">
               Full Remarks
             </h3>
-            <p className="text-sm whitespace-pre-wrap">
-              {expandedRemarks}
-            </p>
+            <div className="space-y-2 text-sm">
+              {renderRemarks(expandedRemarks)}
+            </div>
             <button
               onClick={() => setExpandedRemarks(null)}
               className="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 text-black rounded-full p-2 w-8 h-8 flex items-center justify-center font-bold"
@@ -449,8 +484,10 @@ export function CaptionTable({ posts }: CaptionTableProps) {
                 {/* 7. Remarks */}
                 <TableCell>
                   <div className="max-w-md text-sm text-muted-foreground">
-                    <div className="line-clamp-2">
-                      {post.remarks || post.recommendation}
+                    <div className="line-clamp-2 space-y-1">
+                      {renderRemarks(
+                        post.remarks || post.recommendation,
+                      )}
                     </div>
                     {(post.remarks || post.recommendation) &&
                       (post.remarks || post.recommendation)!

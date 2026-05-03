@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { PubMatTable } from "@/app/components/PubMatTable";
 import { CaptionTable } from "@/app/components/CaptionTable";
 import { Filters } from "@/app/components/Filters";
 import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPostingDate } from "@/utils/postDates";
+
+const PAGE_SIZE = 10;
 
 export function HomePage() {
   const { posts, isLoading } = usePosts();
@@ -23,6 +25,8 @@ export function HomePage() {
     useState("all");
   const [captionDateRangeFilter, setCaptionDateRangeFilter] =
     useState("all");
+  const [pubmatPage, setPubmatPage] = useState(1);
+  const [captionPage, setCaptionPage] = useState(1);
 
   const officePosts = useMemo(() => {
     if (!currentOffice) return [];
@@ -182,6 +186,51 @@ export function HomePage() {
     captionDateRangeFilter,
   ]);
 
+  const pubmatPageCount = Math.max(
+    1,
+    Math.ceil(filteredPubMats.length / PAGE_SIZE),
+  );
+  const captionPageCount = Math.max(
+    1,
+    Math.ceil(filteredCaptions.length / PAGE_SIZE),
+  );
+
+  const paginatedPubMats = useMemo(() => {
+    const start = (pubmatPage - 1) * PAGE_SIZE;
+    return filteredPubMats.slice(start, start + PAGE_SIZE);
+  }, [filteredPubMats, pubmatPage]);
+
+  const paginatedCaptions = useMemo(() => {
+    const start = (captionPage - 1) * PAGE_SIZE;
+    return filteredCaptions.slice(start, start + PAGE_SIZE);
+  }, [filteredCaptions, captionPage]);
+
+  useEffect(() => {
+    setPubmatPage(1);
+  }, [
+    pubmatStatusFilter,
+    pubmatPlatformFilter,
+    pubmatDateRangeFilter,
+    currentOffice,
+  ]);
+
+  useEffect(() => {
+    setCaptionPage(1);
+  }, [
+    captionStatusFilter,
+    captionPlatformFilter,
+    captionDateRangeFilter,
+    currentOffice,
+  ]);
+
+  useEffect(() => {
+    setPubmatPage((page) => Math.min(page, pubmatPageCount));
+  }, [pubmatPageCount]);
+
+  useEffect(() => {
+    setCaptionPage((page) => Math.min(page, captionPageCount));
+  }, [captionPageCount]);
+
   const clearPubMatFilters = () => {
     setPubmatStatusFilter("all");
     setPubmatPlatformFilter("all");
@@ -192,6 +241,52 @@ export function HomePage() {
     setCaptionStatusFilter("all");
     setCaptionPlatformFilter("all");
     setCaptionDateRangeFilter("all");
+  };
+
+  const PaginationControls = ({
+    page,
+    pageCount,
+    total,
+    onPageChange,
+  }: {
+    page: number;
+    pageCount: number;
+    total: number;
+    onPageChange: (page: number) => void;
+  }) => {
+    const start = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, total);
+
+    return (
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing {start}-{end} of {total}
+        </p>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onPageChange(Math.max(1, page - 1))}
+            disabled={page <= 1}
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Prev
+          </button>
+          <span className="text-sm font-medium text-foreground">
+            Page {page} of {pageCount}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              onPageChange(Math.min(pageCount, page + 1))
+            }
+            disabled={page >= pageCount}
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground transition hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -217,7 +312,13 @@ export function HomePage() {
               onClearFilters={clearPubMatFilters}
             />
 
-            <PubMatTable posts={filteredPubMats} />
+            <PubMatTable posts={paginatedPubMats} />
+            <PaginationControls
+              page={pubmatPage}
+              pageCount={pubmatPageCount}
+              total={filteredPubMats.length}
+              onPageChange={setPubmatPage}
+            />
           </section>
 
           <section className="space-y-4">
@@ -233,7 +334,13 @@ export function HomePage() {
               onClearFilters={clearCaptionFilters}
             />
 
-            <CaptionTable posts={filteredCaptions} />
+            <CaptionTable posts={paginatedCaptions} />
+            <PaginationControls
+              page={captionPage}
+              pageCount={captionPageCount}
+              total={filteredCaptions.length}
+              onPageChange={setCaptionPage}
+            />
           </section>
         </>
       )}

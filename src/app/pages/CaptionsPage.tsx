@@ -352,7 +352,7 @@ export function CaptionsPage() {
                 <p className="text-2xl font-bold text-foreground">
                   {analysisResult.grammar}
                 </p>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                <p className="mt-1 text-xs font-bold text-muted-foreground">
                   Grammar
                 </p>
               </div>
@@ -361,7 +361,7 @@ export function CaptionsPage() {
                 <p className="text-2xl font-bold text-foreground">
                   {analysisResult.inclusivity}
                 </p>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                <p className="mt-1 text-xs font-bold text-muted-foreground">
                   Inclusivity
                 </p>
               </div>
@@ -370,7 +370,7 @@ export function CaptionsPage() {
                 <p className="text-2xl font-bold text-foreground">
                   {analysisResult.tone}
                 </p>
-                <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                <p className="mt-1 text-xs font-bold text-muted-foreground">
                   Tone
                 </p>
               </div>

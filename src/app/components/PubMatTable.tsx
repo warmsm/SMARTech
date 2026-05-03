@@ -63,12 +63,43 @@ export function PubMatTable({ posts }: PubMatTableProps) {
     return platform;
   };
 
-  const formatRemarks = (remarks?: string) => {
+  const getRemarkLines = (remarks?: string) => {
     return (remarks || "")
-      .split(";")
+      .split(/[;\n]+/)
       .map((item) => item.trim())
-      .filter(Boolean)
-      .join("\n");
+      .filter(Boolean);
+  };
+
+  const formatRemarks = (remarks?: string) => {
+    return getRemarkLines(remarks).join("\n");
+  };
+
+  const renderRemarks = (remarks?: string) => {
+    const lines = getRemarkLines(remarks);
+
+    if (lines.length === 0) return null;
+
+    return lines.map((line) => {
+      const separatorIndex = line.indexOf(":");
+      const hasLabel = separatorIndex > -1;
+      const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
+      const detail = hasLabel ? line.slice(separatorIndex + 1).trimStart() : line;
+
+      return (
+        <div key={line}>
+          {hasLabel ? (
+            <>
+              <span className="font-semibold text-foreground">
+                {label}
+              </span>{" "}
+              <span>{detail}</span>
+            </>
+          ) : (
+            <span>{detail}</span>
+          )}
+        </div>
+      );
+    });
   };
 
   const handleSort = (column: SortColumn) => {
@@ -317,9 +348,9 @@ export function PubMatTable({ posts }: PubMatTableProps) {
             <h3 className="text-lg font-bold mb-4">
               Full Remarks
             </h3>
-            <p className="text-sm whitespace-pre-wrap">
-              {expandedRemarks}
-            </p>
+            <div className="space-y-2 text-sm">
+              {renderRemarks(expandedRemarks)}
+            </div>
             <button
               onClick={() => setExpandedRemarks(null)}
               className="absolute top-2 right-2 bg-gray-200 hover:bg-gray-300 text-black rounded-full p-2 w-8 h-8 flex items-center justify-center font-bold"
@@ -458,8 +489,8 @@ export function PubMatTable({ posts }: PubMatTableProps) {
                 {/* 3. Remarks */}
                 <TableCell>
                   <div className="max-w-md text-sm text-muted-foreground">
-                    <div className="line-clamp-3 whitespace-pre-line">
-                      {formatRemarks(
+                    <div className="line-clamp-3 space-y-1">
+                      {renderRemarks(
                         post.remarks || post.recommendation,
                       )}
                     </div>

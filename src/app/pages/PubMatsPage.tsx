@@ -410,10 +410,10 @@ export function PubMatsPage() {
                         key={requirement}
                         className="flex items-start gap-3"
                       >
-                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-green-500 text-xs font-bold text-white">
-                          ✓
+                        <CheckCircle className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <span className="font-semibold">
+                          {requirement}
                         </span>
-                        <span>{requirement}</span>
                       </li>
                     ))}
                   </ul>
@@ -744,7 +744,7 @@ export function PubMatsPage() {
                           className="rounded-lg bg-muted/30 p-4"
                         >
                           <div className="flex items-center justify-between gap-3">
-                            <p className="text-sm font-medium text-foreground">
+                            <p className="text-sm font-semibold text-foreground">
                               {criterion.label}
                             </p>
                             <span
