@@ -230,62 +230,16 @@ export function PubMatsPage() {
       setTimeout(() => setShowSuccessMessage(false), 3000);
     } catch (error) {
       console.warn(
-        "Pubmat checker API unavailable, using fallback analysis:",
+        "Pubmat checker API unavailable:",
         error,
       );
 
-      let pubmatScore = 70;
-
-      switch (postType) {
-        case "News":
-          pubmatScore += 10;
-          break;
-        case "Quotes":
-          pubmatScore += 8;
-          break;
-        case "Advisory":
-          pubmatScore += 12;
-          break;
-        case "Resolution":
-          pubmatScore += 9;
-          break;
-        case "Hiring":
-          pubmatScore += 8;
-          break;
-        case "Photo":
-          pubmatScore += 6;
-          break;
-        case "Holiday":
-          pubmatScore += 7;
-          break;
-        case "Other":
-          pubmatScore += 5;
-          break;
-      }
-
-      if (selectedCollaborators.length > 0) {
-        pubmatScore += 4;
-      }
-
-      if (selectedPlatforms.includes("Instagram"))
-        pubmatScore += 5;
-      if (selectedPlatforms.includes("X")) pubmatScore -= 3;
-
-      pubmatScore += Math.floor(Math.random() * 10) - 5;
-      pubmatScore = Math.min(100, Math.max(0, pubmatScore));
-
-      let status: "Accepted" | "Rejected";
-      let remarks: string;
-
-      if (pubmatScore >= 75) {
-        status = "Accepted";
-        remarks =
-          "The pubmat passed the checking process. It is visually appropriate and aligned with the selected post type and platform.";
-      } else {
-        status = "Rejected";
-        remarks =
-          "The pubmat did not meet the required standard. Please revise the layout, visual consistency, and overall alignment with posting guidelines before resubmitting.";
-      }
+      const pubmatScore = 0;
+      const status: "Accepted" | "Rejected" = "Rejected";
+      const remarks =
+        error instanceof Error
+          ? `Pubmat checker failed: ${error.message}. Please try again after the backend is fixed.`
+          : "Pubmat checker failed. Please try again after the backend is fixed.";
 
       setAnalysisResult({
         pubmatScore,
