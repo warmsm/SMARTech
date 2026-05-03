@@ -64,6 +64,10 @@ export function CaptionTable({ posts }: CaptionTableProps) {
 
   const getRemarkLines = (remarks?: string) => {
     return (remarks || "")
+      .replace(
+        /\s+(?=(Overall score|Grammar|Tone|Inclusivity|Spelling):)/g,
+        "\n",
+      )
       .split(/[;\n]+/)
       .map((item) => item.trim())
       .filter(Boolean);
@@ -74,14 +78,14 @@ export function CaptionTable({ posts }: CaptionTableProps) {
 
     if (lines.length === 0) return null;
 
-    return lines.map((line) => {
+    return lines.map((line, index) => {
       const separatorIndex = line.indexOf(":");
       const hasLabel = separatorIndex > -1;
       const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
       const detail = hasLabel ? line.slice(separatorIndex + 1).trimStart() : line;
 
       return (
-        <div key={line}>
+        <div key={`${line}-${index}`}>
           {hasLabel ? (
             <>
               <span className="font-semibold text-foreground">

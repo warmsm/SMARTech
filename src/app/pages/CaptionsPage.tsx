@@ -20,6 +20,43 @@ const formatDateSafe = (date: Date): string => {
 
 type Platform = "Facebook" | "Instagram" | "X" | "TikTok";
 
+const getRemarkLines = (remarks?: string) => {
+  return (remarks || "")
+    .replace(
+      /\s+(?=(Overall score|Grammar|Tone|Inclusivity|Spelling):)/g,
+      "\n",
+    )
+    .split(/[;\n]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const renderRemarks = (remarks?: string) => {
+  return getRemarkLines(remarks).map((line, index) => {
+    const separatorIndex = line.indexOf(":");
+    const hasLabel = separatorIndex > -1;
+    const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
+    const detail = hasLabel
+      ? line.slice(separatorIndex + 1).trimStart()
+      : line;
+
+    return (
+      <div key={`${line}-${index}`}>
+        {hasLabel ? (
+          <>
+            <span className="font-semibold text-foreground">
+              {label}
+            </span>{" "}
+            <span>{detail}</span>
+          </>
+        ) : (
+          <span>{detail}</span>
+        )}
+      </div>
+    );
+  });
+};
+
 interface AnalysisResult {
   captionScore: number;
   remarks: string;
@@ -382,9 +419,9 @@ export function CaptionsPage() {
               <h4 className="mb-2 text-sm font-semibold text-primary">
                 Remarks:
               </h4>
-              <p className="text-sm leading-relaxed text-foreground">
-                {analysisResult.remarks}
-              </p>
+              <div className="space-y-1 text-sm leading-relaxed text-foreground">
+                {renderRemarks(analysisResult.remarks)}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 rounded-lg bg-muted/30 p-4 text-sm">
