@@ -25,6 +25,7 @@ interface PubMatTableProps {
 
 type SortColumn =
   | "id"
+  | "pubmatType"
   | "platform"
   | "status"
   | "reviewStatus"
@@ -84,6 +85,10 @@ export function PubMatTable({ posts }: PubMatTableProps) {
         case "id":
           aValue = a.id;
           bValue = b.id;
+          break;
+        case "pubmatType":
+          aValue = a.pubmatType || "";
+          bValue = b.pubmatType || "";
           break;
         case "platform":
           aValue = formatPlatforms(a.platform);
@@ -324,7 +329,15 @@ export function PubMatTable({ posts }: PubMatTableProps) {
               {/* 1. Pubmat */}
               <TableHead>Pubmat</TableHead>
 
-              {/* 2. Status */}
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort("pubmatType")}
+              >
+                PubMat Type
+                <SortIcon column="pubmatType" />
+              </TableHead>
+
+              {/* 3. Status */}
               <TableHead
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handleSort("status")}
@@ -419,7 +432,11 @@ export function PubMatTable({ posts }: PubMatTableProps) {
                   </div>
                 </TableCell>
 
-                {/* 2. Status */}
+                <TableCell className="text-sm font-medium">
+                  {post.pubmatType || "-"}
+                </TableCell>
+
+                {/* 3. Status */}
                 <TableCell>
                   <span
                     className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${getStatusColor(

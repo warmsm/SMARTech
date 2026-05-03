@@ -96,6 +96,21 @@ export function HomePage() {
         return postDate >= last6Months && postDate < tomorrow;
       }
 
+      case "upcoming":
+        return postDate >= tomorrow;
+
+      case "next7days": {
+        const next7Days = new Date(today);
+        next7Days.setDate(today.getDate() + 7);
+        return postDate >= tomorrow && postDate <= next7Days;
+      }
+
+      case "next30days": {
+        const next30Days = new Date(today);
+        next30Days.setDate(today.getDate() + 30);
+        return postDate >= tomorrow && postDate <= next30Days;
+      }
+
       default:
         return true;
     }

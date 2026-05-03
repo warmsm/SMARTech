@@ -110,6 +110,15 @@ export function Filters({
                 <SelectItem value="last6months">
                   Last 6 Months
                 </SelectItem>
+                <SelectItem value="upcoming">
+                  Upcoming
+                </SelectItem>
+                <SelectItem value="next7days">
+                  Next 7 Days
+                </SelectItem>
+                <SelectItem value="next30days">
+                  Next 30 Days
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -77,6 +77,58 @@ export function PubMatsPage() {
   const collaborators: Collaborator[] = ["SK", "YORP"];
   const platforms: Platform[] = ["Facebook", "Instagram", "X"];
 
+  const getRequiredElements = () => {
+    const selectedType = postType.toLowerCase();
+    const logoList = ["NYC", "BP", ...selectedCollaborators];
+    const requirements = [
+      `Correct logos present (${logoList.join(", ")})`,
+      "Correct logo order",
+      "Pubmat image quality (resolution, blur, pixelation, contrast)",
+    ];
+
+    if (
+      ["news", "opportunities", "holiday", "other"].includes(
+        selectedType,
+      )
+    ) {
+      requirements.push("Watermark present");
+    }
+
+    if (
+      [
+        "news",
+        "quotes",
+        "advisory",
+        "resolution",
+        "opportunities",
+        "photo",
+        "holiday",
+      ].includes(selectedType)
+    ) {
+      requirements.push("Template correctly used");
+    }
+
+    if (["advisory", "resolution"].includes(selectedType)) {
+      requirements.push("SGD signature required");
+    }
+
+    if (
+      [
+        "news",
+        "quotes",
+        "advisory",
+        "resolution",
+        "opportunities",
+        "holiday",
+        "other",
+      ].includes(selectedType)
+    ) {
+      requirements.push("Readable text and spelling review");
+    }
+
+    return requirements;
+  };
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -325,10 +377,27 @@ export function PubMatsPage() {
             </button>
 
             {showTypeHelp && (
-              <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                The post type helps the system evaluate the
-                pubmat based on its expected purpose and
-                presentation style.
+              <div className="rounded-lg border border-border bg-card px-4 py-3 text-sm text-foreground">
+                {postType ? (
+                  <ul className="space-y-3">
+                    {getRequiredElements().map((requirement) => (
+                      <li
+                        key={requirement}
+                        className="flex items-start gap-3"
+                      >
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded bg-green-500 text-xs font-bold text-white">
+                          ✓
+                        </span>
+                        <span>{requirement}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">
+                    Select a post type to see the required
+                    elements.
+                  </p>
+                )}
               </div>
             )}
           </div>
