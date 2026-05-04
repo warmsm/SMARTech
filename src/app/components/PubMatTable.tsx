@@ -10,6 +10,7 @@ import { AuditPost } from "@/data/mockData";
 import { Button } from "@/app/components/ui/button";
 import {
   MessageSquare,
+  Trash2,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -36,8 +37,11 @@ type SortDirection = "asc" | "desc";
 
 export function PubMatTable({ posts }: PubMatTableProps) {
   const { currentOffice } = useAuth();
-  const { appealPost } = usePosts();
+  const { appealPost, deletePost } = usePosts();
   const [appealingPostId, setAppealingPostId] = useState<
+    string | null
+  >(null);
+  const [deletingPostId, setDeletingPostId] = useState<
     string | null
   >(null);
   const [sortColumn, setSortColumn] =
@@ -210,6 +214,23 @@ export function PubMatTable({ posts }: PubMatTableProps) {
       alert("Failed to submit appeal. Please try again.");
     } finally {
       setAppealingPostId(null);
+    }
+  };
+
+  const handleDelete = async (postId: string) => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this PubMat entry? This action cannot be undone.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setDeletingPostId(postId);
+      await deletePost(postId);
+    } catch (error) {
+      console.error("Error deleting PubMat:", error);
+      alert("Failed to delete entry. Please try again.");
+    } finally {
+      setDeletingPostId(null);
     }
   };
 
@@ -447,15 +468,13 @@ export function PubMatTable({ posts }: PubMatTableProps) {
                 <SortIcon column="id" />
               </TableHead>
 
-              {!isCentral && (
-                <TableHead
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => handleSort("actions")}
-                >
-                  Action
-                  <SortIcon column="actions" />
-                </TableHead>
-              )}
+              <TableHead
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort("actions")}
+              >
+                Actions
+                <SortIcon column="actions" />
+              </TableHead>
             </TableRow>
           </TableHeader>
 
@@ -580,44 +599,57 @@ export function PubMatTable({ posts }: PubMatTableProps) {
                   {getPubmatId(post.id)}
                 </TableCell>
 
-                {!isCentral && (
-                  <TableCell>
-                    {post.status === "Rejected" &&
+                <TableCell>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!isCentral &&
+                      post.status === "Rejected" &&
                       (!post.appealStatus ||
-                        post.appealStatus ===
-                          "Not Appealed") && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAppeal(post.id)}
-                          disabled={appealingPostId === post.id}
-                          className="text-xs"
-                        >
-                          <MessageSquare className="h-3 w-3 mr-1" />
-                          {appealingPostId === post.id
-                            ? "Submitting..."
-                            : "Appeal"}
-                        </Button>
+                        post.appealStatus === "Not Appealed") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleAppeal(post.id)}
+                            disabled={appealingPostId === post.id}
+                            className="text-xs"
+                          >
+                            <MessageSquare className="h-3 w-3 mr-1" />
+                            {appealingPostId === post.id
+                              ? "Submitting..."
+                              : "Appeal"}
+                          </Button>
+                        )}
+                    {!isCentral &&
+                      post.appealStatus === "Appealed" && (
+                        <span className="text-xs text-yellow-600">
+                          Appeal Pending
+                        </span>
                       )}
-                    {post.appealStatus === "Appealed" && (
-                      <span className="text-xs text-yellow-600">
-                        Appeal Pending
-                      </span>
-                    )}
-                    {post.appealStatus ===
-                      "Appeal Approved" && (
-                      <span className="text-xs text-green-600">
-                        Appeal Approved
-                      </span>
-                    )}
-                    {post.appealStatus ===
-                      "Appeal Rejected" && (
-                      <span className="text-xs text-red-600">
-                        Appeal Rejected
-                      </span>
-                    )}
-                  </TableCell>
-                )}
+                    {!isCentral &&
+                      post.appealStatus === "Appeal Approved" && (
+                        <span className="text-xs text-green-600">
+                          Appeal Approved
+                        </span>
+                      )}
+                    {!isCentral &&
+                      post.appealStatus === "Appeal Rejected" && (
+                        <span className="text-xs text-red-600">
+                          Appeal Rejected
+                        </span>
+                      )}
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(post.id)}
+                      disabled={deletingPostId === post.id}
+                      className="text-xs"
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      {deletingPostId === post.id
+                        ? "Deleting..."
+                        : "Delete"}
+                    </Button>
+                  </div>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

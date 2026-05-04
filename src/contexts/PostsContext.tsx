@@ -15,6 +15,7 @@ interface PostsContextType {
     postId: string,
     updatedPost: AuditPost,
   ) => Promise<void>;
+  deletePost: (postId: string) => Promise<void>;
   centralReviewPost: (
     postId: string,
     status: string,
@@ -86,6 +87,18 @@ export function PostsProvider({
       prevPosts.map((post) =>
         post.id === postId ? updatedPost : post,
       ),
+    );
+  };
+
+  const deletePost = async (postId: string): Promise<void> => {
+    try {
+      await api.delete(`/posts/${postId}`);
+    } catch (error) {
+      // Server unavailable, continue with local state.
+    }
+
+    setPosts((prevPosts) =>
+      prevPosts.filter((post) => post.id !== postId),
     );
   };
 
@@ -190,6 +203,7 @@ export function PostsProvider({
         posts,
         addPost,
         updatePost,
+        deletePost,
         centralReviewPost,
         appealPost,
         reviewAppeal,
