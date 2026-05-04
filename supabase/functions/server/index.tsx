@@ -324,7 +324,23 @@ const normalizedPostsStore = {
     const supabase = supabaseAdmin();
     const { data: submissions, error } = await supabase
       .from(submissionsTable)
-      .select("*")
+      .select(
+        [
+          "id",
+          "office_id",
+          "caption",
+          "status",
+          "recommendation",
+          "posting_date",
+          "reviewer",
+          "submission_date",
+          "last_updated",
+          "audit_focus",
+          "pubmat_type",
+          "has_been_revised",
+          "created_at",
+        ].join(", "),
+      )
       .order("created_at", { ascending: false });
 
     if (error) throw error;
