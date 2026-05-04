@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import { AuditPost } from "@/data/mockData";
@@ -10,6 +11,7 @@ import { api } from "@/utils/supabase/client";
 
 interface PostsContextType {
   posts: AuditPost[];
+  loadPostThumbnails: (postIds: string[]) => Promise<void>;
   addPost: (post: AuditPost) => Promise<void>;
   updatePost: (
     postId: string,
@@ -111,6 +113,39 @@ export function PostsProvider({
 
     fetchPosts();
   }, []);
+
+  const loadPostThumbnails = useCallback(async (
+    postIds: string[],
+  ): Promise<void> => {
+    const ids = Array.from(new Set(postIds)).filter(Boolean);
+    if (ids.length === 0) return;
+
+    const postsMissingThumbnails = posts.some(
+      (post) =>
+        ids.includes(post.id) &&
+        post.auditFocus === "pubmat" &&
+        !post.thumbnail,
+    );
+
+    if (!postsMissingThumbnails) return;
+
+    try {
+      const response = await api.get(
+        `/posts/thumbnails?ids=${encodeURIComponent(ids.join(","))}`,
+      );
+      const thumbnails = response.thumbnails || {};
+
+      setPosts((prevPosts) =>
+        prevPosts.map((post) =>
+          thumbnails[post.id]
+            ? { ...post, thumbnail: thumbnails[post.id] }
+            : post,
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to fetch post thumbnails:", error);
+    }
+  }, [posts]);
 
   const addPost = async (post: AuditPost): Promise<void> => {
     try {
@@ -250,6 +285,7 @@ export function PostsProvider({
     <PostsContext.Provider
       value={{
         posts,
+        loadPostThumbnails,
         addPost,
         updatePost,
         deletePost,

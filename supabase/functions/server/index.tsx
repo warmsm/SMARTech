@@ -437,6 +437,24 @@ const normalizedPostsStore = {
     );
   },
 
+  async thumbnails(ids: string[]): Promise<Record<string, string>> {
+    if (ids.length === 0) return {};
+
+    const supabase = supabaseAdmin();
+    const { data, error } = await supabase
+      .from(submissionsTable)
+      .select("id, thumbnail")
+      .in("id", ids);
+
+    if (error) throw error;
+
+    return Object.fromEntries(
+      (data || [])
+        .filter((row: any) => row.thumbnail)
+        .map((row: any) => [row.id, row.thumbnail]),
+    );
+  },
+
   async getById(id: string): Promise<any | null> {
     const posts = await this.list();
     return posts.find((post: any) => post.id === id) || null;
@@ -553,6 +571,47 @@ const postsStore = {
     } catch (error) {
       if (isMissingTableError(error)) {
         return legacyPostsStore.list();
+      }
+      throw error;
+    }
+  },
+
+  async thumbnails(ids: string[]): Promise<Record<string, string>> {
+    try {
+      const normalizedThumbnails =
+        await normalizedPostsStore.thumbnails(ids);
+
+      if (Object.keys(normalizedThumbnails).length > 0) {
+        return normalizedThumbnails;
+      }
+
+      try {
+        const legacyPosts = await legacyPostsStore.list();
+        return Object.fromEntries(
+          legacyPosts
+            .filter(
+              (post: any) =>
+                ids.includes(post.id) && post.thumbnail,
+            )
+            .map((post: any) => [post.id, post.thumbnail]),
+        );
+      } catch (legacyError) {
+        if (isMissingTableError(legacyError)) {
+          return normalizedThumbnails;
+        }
+        throw legacyError;
+      }
+    } catch (error) {
+      if (isMissingTableError(error)) {
+        const legacyPosts = await legacyPostsStore.list();
+        return Object.fromEntries(
+          legacyPosts
+            .filter(
+              (post: any) =>
+                ids.includes(post.id) && post.thumbnail,
+            )
+            .map((post: any) => [post.id, post.thumbnail]),
+        );
       }
       throw error;
     }
@@ -892,6 +951,29 @@ app.get(`${functionPath}/posts`, async (c) => {
         error: "Failed to fetch posts",
         details: error?.message || String(error),
         posts: [],
+      },
+      500,
+    );
+  }
+});
+
+app.get(`${functionPath}/posts/thumbnails`, async (c) => {
+  try {
+    const ids = (c.req.query("ids") || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean)
+      .slice(0, 20);
+
+    const thumbnails = await postsStore.thumbnails(ids);
+    return c.json({ thumbnails });
+  } catch (error: any) {
+    console.error("Error fetching post thumbnails:", error);
+    return c.json(
+      {
+        error: "Failed to fetch post thumbnails",
+        details: error?.message || String(error),
+        thumbnails: {},
       },
       500,
     );

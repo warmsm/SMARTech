@@ -9,7 +9,7 @@ import { getPostingDate } from "@/utils/postDates";
 const PAGE_SIZE = 10;
 
 export function HomePage() {
-  const { posts, isLoading } = usePosts();
+  const { posts, isLoading, loadPostThumbnails } = usePosts();
   const { currentOffice } = useAuth();
 
   const [pubmatStatusFilter, setPubmatStatusFilter] = useState("all");
@@ -121,6 +121,15 @@ export function HomePage() {
   useEffect(() => { setCaptionPage(1); }, [captionStatusFilter, captionPlatformFilter, captionDateRangeFilter, currentOffice]);
   useEffect(() => { setPubmatPage((page) => Math.min(page, pubmatPageCount)); }, [pubmatPageCount]);
   useEffect(() => { setCaptionPage((page) => Math.min(page, captionPageCount)); }, [captionPageCount]);
+  useEffect(() => {
+    const visiblePubmatIds = paginatedPubMats
+      .filter((post) => !post.thumbnail)
+      .map((post) => post.id);
+
+    if (visiblePubmatIds.length > 0) {
+      void loadPostThumbnails(visiblePubmatIds);
+    }
+  }, [paginatedPubMats, loadPostThumbnails]);
 
   const clearPubMatFilters = () => {
     setPubmatStatusFilter("all");
