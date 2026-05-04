@@ -15,7 +15,7 @@ const kv = {
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
-        .from("kv_store_e75a6481")
+        .from("kv_store_legacy")
         .select("value")
         .eq("key", key)
         .maybeSingle();
@@ -31,7 +31,7 @@ const kv = {
     try {
       const supabase = getSupabaseClient();
       const { error } = await supabase
-        .from("kv_store_e75a6481")
+        .from("kv_store_legacy")
         .upsert({ key, value });
       if (error) throw error;
     } catch (error) {
@@ -46,7 +46,7 @@ const supabaseAdmin = () =>
     Deno.env.get("SB_URL")!,
     Deno.env.get("SB_SERVICE_ROLE_KEY")!,
   );
-const legacyPostsTable = "posts_e75a6481";
+const legacyPostsTable = "posts_legacy";
 const officesTable = "offices";
 const platformsTable = "platforms";
 const submissionsTable = "audit_submissions";
