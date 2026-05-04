@@ -3,19 +3,19 @@
 
 create extension if not exists pgcrypto;
 
-create table if not exists offices_e75a6481 (
+create table if not exists offices (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
   created_at timestamptz not null default now()
 );
 
-create table if not exists platforms_e75a6481 (
+create table if not exists platforms (
   name text primary key
 );
 
-create table if not exists audit_submissions_e75a6481 (
+create table if not exists audit_submissions (
   id text primary key,
-  office_id uuid references offices_e75a6481(id) on delete set null,
+  office_id uuid references offices(id) on delete set null,
   caption text not null default '',
   thumbnail text,
   status text not null default 'Rejected',
@@ -31,14 +31,14 @@ create table if not exists audit_submissions_e75a6481 (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists submission_platforms_e75a6481 (
-  submission_id text not null references audit_submissions_e75a6481(id) on delete cascade,
-  platform text not null references platforms_e75a6481(name) on delete restrict,
+create table if not exists submission_platforms (
+  submission_id text not null references audit_submissions(id) on delete cascade,
+  platform text not null references platforms(name) on delete restrict,
   primary key (submission_id, platform)
 );
 
-create table if not exists audit_scores_e75a6481 (
-  submission_id text primary key references audit_submissions_e75a6481(id) on delete cascade,
+create table if not exists audit_scores (
+  submission_id text primary key references audit_submissions(id) on delete cascade,
   score numeric not null default 0,
   caption_score numeric,
   pubmat_score numeric,
@@ -47,23 +47,23 @@ create table if not exists audit_scores_e75a6481 (
   tone numeric
 );
 
-create table if not exists central_reviews_e75a6481 (
-  submission_id text primary key references audit_submissions_e75a6481(id) on delete cascade,
+create table if not exists central_reviews (
+  submission_id text primary key references audit_submissions(id) on delete cascade,
   status text not null default 'Pending Review',
   comment text,
   reviewed_on date
 );
 
-create table if not exists appeals_e75a6481 (
+create table if not exists appeals (
   id uuid primary key default gen_random_uuid(),
-  submission_id text not null references audit_submissions_e75a6481(id) on delete cascade,
+  submission_id text not null references audit_submissions(id) on delete cascade,
   status text not null default 'Appealed',
   comment text,
   appealed_on date,
   created_at timestamptz not null default now()
 );
 
-create table if not exists access_requests_e75a6481 (
+create table if not exists access_requests (
   id text primary key,
   type text not null,
   office_email text not null,
@@ -79,21 +79,21 @@ create table if not exists access_requests_e75a6481 (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists app_counters_e75a6481 (
+create table if not exists app_counters (
   key text primary key,
   value integer not null default 0
 );
 
-create index if not exists audit_submissions_office_idx on audit_submissions_e75a6481(office_id);
-create index if not exists audit_submissions_focus_idx on audit_submissions_e75a6481(audit_focus);
-create index if not exists audit_submissions_posting_date_idx on audit_submissions_e75a6481(posting_date);
-create index if not exists submission_platforms_platform_idx on submission_platforms_e75a6481(platform);
-create index if not exists appeals_submission_idx on appeals_e75a6481(submission_id, created_at desc);
-create index if not exists access_requests_status_idx on access_requests_e75a6481(status);
-create index if not exists access_requests_code_idx on access_requests_e75a6481(verification_code);
+create index if not exists audit_submissions_office_idx on audit_submissions(office_id);
+create index if not exists audit_submissions_focus_idx on audit_submissions(audit_focus);
+create index if not exists audit_submissions_posting_date_idx on audit_submissions(posting_date);
+create index if not exists submission_platforms_platform_idx on submission_platforms(platform);
+create index if not exists appeals_submission_idx on appeals(submission_id, created_at desc);
+create index if not exists access_requests_status_idx on access_requests(status);
+create index if not exists access_requests_code_idx on access_requests(verification_code);
 
 -- Seed known platforms.
-insert into platforms_e75a6481(name)
+insert into platforms(name)
 values ('Facebook'), ('Instagram'), ('X'), ('TikTok')
 on conflict (name) do nothing;
 
@@ -101,13 +101,13 @@ on conflict (name) do nothing;
 do $$
 begin
   if to_regclass('public.posts_e75a6481') is not null then
-    insert into offices_e75a6481(name)
+    insert into offices(name)
     select distinct nullif(value->>'office', '')
     from posts_e75a6481
     where nullif(value->>'office', '') is not null
     on conflict (name) do nothing;
 
-    insert into audit_submissions_e75a6481 (
+    insert into audit_submissions (
       id,
       office_id,
       caption,
@@ -144,10 +144,10 @@ begin
       coalesce(p.created_at, now()),
       coalesce(p.updated_at, now())
     from posts_e75a6481 p
-    left join offices_e75a6481 o on o.name = p.value->>'office'
+    left join offices o on o.name = p.value->>'office'
     on conflict (id) do nothing;
 
-    insert into platforms_e75a6481(name)
+    insert into platforms(name)
     select distinct platform_name
     from posts_e75a6481 p
     cross join lateral jsonb_array_elements_text(
@@ -160,7 +160,7 @@ begin
     where nullif(platform_name, '') is not null
     on conflict (name) do nothing;
 
-    insert into submission_platforms_e75a6481(submission_id, platform)
+    insert into submission_platforms(submission_id, platform)
     select distinct p.id, platform_name
     from posts_e75a6481 p
     cross join lateral jsonb_array_elements_text(
@@ -173,7 +173,7 @@ begin
     where nullif(platform_name, '') is not null
     on conflict (submission_id, platform) do nothing;
 
-    insert into audit_scores_e75a6481 (
+    insert into audit_scores (
       submission_id,
       score,
       caption_score,
@@ -193,7 +193,7 @@ begin
     from posts_e75a6481
     on conflict (submission_id) do nothing;
 
-    insert into central_reviews_e75a6481(submission_id, status, comment, reviewed_on)
+    insert into central_reviews(submission_id, status, comment, reviewed_on)
     select
       id,
       coalesce(value->>'centralReviewStatus', 'Pending Review'),
@@ -203,7 +203,7 @@ begin
     where value ? 'centralReviewStatus' or value ? 'centralReviewComment'
     on conflict (submission_id) do nothing;
 
-    insert into appeals_e75a6481(submission_id, status, comment, appealed_on)
+    insert into appeals(submission_id, status, comment, appealed_on)
     select
       id,
       coalesce(value->>'appealStatus', 'Appealed'),
@@ -220,7 +220,7 @@ end $$;
 do $$
 begin
   if to_regclass('public.kv_store_e75a6481') is not null then
-    insert into access_requests_e75a6481 (
+    insert into access_requests (
       id,
       type,
       office_email,
@@ -251,7 +251,7 @@ begin
       and req ? 'id'
     on conflict (id) do nothing;
 
-    insert into app_counters_e75a6481(key, value)
+    insert into app_counters(key, value)
     select 'account_password_counter', coalesce((value #>> '{}')::integer, 0)
     from kv_store_e75a6481
     where key = 'account_password_counter'

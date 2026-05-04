@@ -47,15 +47,15 @@ const supabaseAdmin = () =>
     Deno.env.get("SB_SERVICE_ROLE_KEY")!,
   );
 const legacyPostsTable = "posts_e75a6481";
-const officesTable = "offices_e75a6481";
-const platformsTable = "platforms_e75a6481";
-const submissionsTable = "audit_submissions_e75a6481";
-const submissionPlatformsTable = "submission_platforms_e75a6481";
-const scoresTable = "audit_scores_e75a6481";
-const reviewsTable = "central_reviews_e75a6481";
-const appealsTable = "appeals_e75a6481";
-const accessRequestsTable = "access_requests_e75a6481";
-const countersTable = "app_counters_e75a6481";
+const officesTable = "offices";
+const platformsTable = "platforms";
+const submissionsTable = "audit_submissions";
+const submissionPlatformsTable = "submission_platforms";
+const scoresTable = "audit_scores";
+const reviewsTable = "central_reviews";
+const appealsTable = "appeals";
+const accessRequestsTable = "access_requests";
+const countersTable = "app_counters";
 
 const isMissingTableError = (error: any) =>
   error?.code === "42P01" ||
