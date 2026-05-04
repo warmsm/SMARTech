@@ -34,6 +34,12 @@ type SortColumn =
   | "actions";
 type SortDirection = "asc" | "desc";
 
+const VISUAL_ONLY_REMARK_LABELS = new Set([
+  "Facebook Lead Text",
+  "Text Limit",
+  "Hashtags",
+]);
+
 export function CaptionTable({ posts }: CaptionTableProps) {
   const { currentOffice } = useAuth();
   const { appealPost, deletePost } = usePosts();
@@ -69,7 +75,7 @@ export function CaptionTable({ posts }: CaptionTableProps) {
   const getRemarkLines = (remarks?: string) => {
     return (remarks || "")
       .replace(
-        /\s+(?=(Overall score|Grammar|Tone|Inclusivity|Spelling):)/g,
+        /\s+(?=(Overall score|Grammar|Tone|Inclusivity|Spelling|Facebook Lead Text|Text Limit|Hashtags):)/g,
         "\n",
       )
       .split(/[;\n]+/)
@@ -85,14 +91,18 @@ export function CaptionTable({ posts }: CaptionTableProps) {
     return lines.map((line, index) => {
       const separatorIndex = line.indexOf(":");
       const hasLabel = separatorIndex > -1;
-      const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
+      const rawLabel = hasLabel ? line.slice(0, separatorIndex) : "";
+      const label = hasLabel ? `${rawLabel}:` : "";
       const detail = hasLabel ? line.slice(separatorIndex + 1).trimStart() : line;
+      const labelWeight = VISUAL_ONLY_REMARK_LABELS.has(rawLabel)
+        ? "font-normal"
+        : "font-semibold";
 
       return (
         <div key={`${line}-${index}`}>
           {hasLabel ? (
             <>
-              <span className="font-semibold text-foreground">
+              <span className={`${labelWeight} text-foreground`}>
                 {label}
               </span>{" "}
               <span>{detail}</span>
