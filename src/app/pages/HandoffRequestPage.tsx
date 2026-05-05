@@ -41,9 +41,11 @@ export default function HandoffRequestPage() {
   });
 
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleRequestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError("");
 
     if (!email) {
@@ -77,18 +79,26 @@ export default function HandoffRequestPage() {
       return;
     }
 
-    await addRequest({
-      id: crypto.randomUUID(),
-      type: "handoff",
-      officeEmail: email,
-      officeName: profile.office,
-      status: "Pending",
-      submittedAt: new Date().toLocaleString(),
-      reason: form.reason,
-      newAssignedPerson: form.newName,
-    });
+    setIsSubmitting(true);
 
-    setStep("done");
+    try {
+      await addRequest({
+        id: crypto.randomUUID(),
+        type: "handoff",
+        officeEmail: email,
+        officeName: profile.office,
+        status: "Pending",
+        submittedAt: new Date().toLocaleString(),
+        reason: form.reason,
+        newAssignedPerson: form.newName,
+      });
+
+      setStep("done");
+    } catch {
+      setError("Failed to submit request. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -164,9 +174,12 @@ export default function HandoffRequestPage() {
 
                   <Button
                     type="submit"
+                    disabled={isSubmitting}
                     className="w-full bg-[#FFFF00] text-[#000033]"
                   >
-                    Submit Request
+                    {isSubmitting
+                      ? "Request Submitting"
+                      : "Submit Request"}
                   </Button>
                 </form>
 

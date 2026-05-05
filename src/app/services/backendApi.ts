@@ -31,7 +31,36 @@ const normalizeStatus = (value: unknown, score: number) => {
   return score >= 75 ? ("Accepted" as const) : ("Rejected" as const);
 };
 
+const isOnlyKeysmash = (caption: string) => {
+  const trimmed = caption.trim();
+  const lettersOnly = trimmed.replace(/[^a-zA-Z]/g, "");
+  const words = trimmed.split(/\s+/).filter(Boolean);
+
+  if (words.length !== 1 || lettersOnly.length < 12) {
+    return false;
+  }
+
+  const lower = lettersOnly.toLowerCase();
+  const vowels = lower.match(/[aeiou]/g)?.length || 0;
+  const vowelRatio = vowels / lower.length;
+  const consonantRuns = lower.match(/[^aeiou]{5,}/g) || [];
+
+  return vowelRatio < 0.32 || consonantRuns.length > 0;
+};
+
 export const verifyCaption = async (caption: string) => {
+  if (isOnlyKeysmash(caption)) {
+    return {
+      captionScore: 0,
+      grammar: 0,
+      inclusivity: 0,
+      tone: 0,
+      status: "Rejected" as const,
+      remarks:
+        "Caption Rejected. Overall score: 0. Grammar: fail. Tone: fail. Inclusivity: fail. Suggestions: Caption appears to be a keysmash or random text.",
+    };
+  }
+
   const client = await Client.connect(CAPTION_VERIFIER_URL);
   const result = await client.predict("/predict", [caption]);
   const [remarks, grammarValue, inclusivityValue, toneValue] =

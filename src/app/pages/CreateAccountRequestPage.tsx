@@ -21,9 +21,11 @@ export default function CreateAccountRequestPage() {
 
   const [step, setStep] = useState<"form" | "done">("form");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setError("");
 
     if (!form.officeName) {
@@ -48,17 +50,25 @@ export default function CreateAccountRequestPage() {
       return;
     }
 
-    await addRequest({
-      id: crypto.randomUUID(),
-      type: "create-account",
-      officeEmail: normalizedEmail,
-      officeName: form.officeName,
-      status: "Pending",
-      submittedAt: new Date().toLocaleString(),
-      newAssignedPerson: form.assignedPerson,
-    });
+    setIsSubmitting(true);
 
-    setStep("done");
+    try {
+      await addRequest({
+        id: crypto.randomUUID(),
+        type: "create-account",
+        officeEmail: normalizedEmail,
+        officeName: form.officeName,
+        status: "Pending",
+        submittedAt: new Date().toLocaleString(),
+        newAssignedPerson: form.assignedPerson,
+      });
+
+      setStep("done");
+    } catch {
+      setError("Failed to submit request. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -142,9 +152,12 @@ export default function CreateAccountRequestPage() {
 
                   <Button
                     type="submit"
+                    disabled={isSubmitting}
                     className="w-full bg-[#FFFF00] hover:bg-[#FFFF00]/90 text-black font-semibold"
                   >
-                    Submit Request
+                    {isSubmitting
+                      ? "Request Submitting"
+                      : "Submit Request"}
                   </Button>
                 </form>
 
