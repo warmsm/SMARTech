@@ -10,6 +10,7 @@ import { usePosts } from "@/contexts/PostsContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { verifyCaption } from "@/app/services/backendApi";
+import { getCaptionRemarkRows } from "@/utils/captionRemarks";
 
 const formatDateSafe = (date: Date): string => {
   const year = date.getFullYear();
@@ -20,29 +21,12 @@ const formatDateSafe = (date: Date): string => {
 
 type Platform = "Facebook" | "Instagram" | "X" | "TikTok";
 
-const getRemarkLines = (remarks?: string) => {
-  return (remarks || "")
-    .replace(
-      /\s+(?=(Overall score|Grammar|Tone|Inclusivity|Spelling):)/g,
-      "\n",
-    )
-    .split(/[;\n]+/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-};
-
-const renderRemarks = (remarks?: string) => {
-  const rows = getRemarkLines(remarks).map((line) => {
-    const separatorIndex = line.indexOf(":");
-    const hasLabel = separatorIndex > -1;
-    const label = hasLabel ? line.slice(0, separatorIndex) : "Summary";
-    const detail = hasLabel
-      ? line.slice(separatorIndex + 1).trimStart()
-      : line;
-
-    return { label, detail };
-  });
-
+const renderRemarks = (
+  remarks?: string,
+  caption?: string,
+  platform?: string | string[],
+) => {
+  const rows = getCaptionRemarkRows({ remarks, caption, platform });
   if (rows.length === 0) return null;
 
   return (
@@ -61,10 +45,16 @@ const renderRemarks = (remarks?: string) => {
         <tbody className="divide-y divide-border">
           {rows.map((row, index) => (
             <tr key={`${row.label}-${index}`}>
-              <td className="px-3 py-2 align-top font-semibold text-foreground">
+              <td
+                className={`px-3 py-2 align-top text-foreground ${
+                  row.emphasizeLabel === false
+                    ? "font-normal"
+                    : "font-semibold"
+                }`}
+              >
                 {row.label}
               </td>
-              <td className="px-3 py-2 align-top text-muted-foreground">
+              <td className="whitespace-pre-line px-3 py-2 align-top text-muted-foreground">
                 {row.detail}
               </td>
             </tr>
@@ -438,7 +428,11 @@ export function CaptionsPage() {
                 Remarks:
               </h4>
               <div className="space-y-1 text-sm leading-relaxed text-foreground">
-                {renderRemarks(analysisResult.remarks)}
+                {renderRemarks(
+                  analysisResult.remarks,
+                  caption,
+                  selectedPlatforms,
+                )}
               </div>
             </div>
 

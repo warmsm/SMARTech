@@ -19,6 +19,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { usePosts } from "@/contexts/PostsContext";
 import { useState, useMemo } from "react";
 import { getPostingDate } from "@/utils/postDates";
+import { getCaptionRemarkRows } from "@/utils/captionRemarks";
 
 interface CaptionTableProps {
   posts: AuditPost[];
@@ -53,9 +54,11 @@ export function CaptionTable({ posts }: CaptionTableProps) {
   const [expandedReason, setExpandedReason] = useState<
     string | null
   >(null);
-  const [expandedRemarks, setExpandedRemarks] = useState<
-    string | null
-  >(null);
+  const [expandedRemarks, setExpandedRemarks] = useState<{
+    remarks: string;
+    caption?: string;
+    platform?: string | string[];
+  } | null>(null);
 
   const isCentral = currentOffice === "Central NYC";
 
@@ -66,43 +69,49 @@ export function CaptionTable({ posts }: CaptionTableProps) {
     return platform;
   };
 
-  const getRemarkLines = (remarks?: string) => {
-    return (remarks || "")
-      .replace(
-        /\s+(?=(Overall score|Grammar|Tone|Inclusivity|Spelling):)/g,
-        "\n",
-      )
-      .split(/[;\n]+/)
-      .map((item) => item.trim())
-      .filter(Boolean);
-  };
+  const renderRemarks = (
+    remarks?: string,
+    caption?: string,
+    platform?: string | string[],
+  ) => {
+    const rows = getCaptionRemarkRows({ remarks, caption, platform });
 
-  const renderRemarks = (remarks?: string) => {
-    const lines = getRemarkLines(remarks);
+    if (rows.length === 0) return null;
 
-    if (lines.length === 0) return null;
-
-    return lines.map((line, index) => {
-      const separatorIndex = line.indexOf(":");
-      const hasLabel = separatorIndex > -1;
-      const label = hasLabel ? line.slice(0, separatorIndex + 1) : "";
-      const detail = hasLabel ? line.slice(separatorIndex + 1).trimStart() : line;
-
-      return (
-        <div key={`${line}-${index}`}>
-          {hasLabel ? (
-            <>
-              <span className="font-semibold text-foreground">
-                {label}
-              </span>{" "}
-              <span>{detail}</span>
-            </>
-          ) : (
-            <span>{detail}</span>
-          )}
-        </div>
-      );
-    });
+    return (
+      <div className="overflow-hidden rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="w-1/3 px-3 py-2 text-left font-semibold text-foreground">
+                Criteria
+              </th>
+              <th className="px-3 py-2 text-left font-semibold text-foreground">
+                Remark
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((row, index) => (
+              <tr key={`${row.label}-${index}`}>
+                <td
+                  className={`px-3 py-2 align-top text-foreground ${
+                    row.emphasizeLabel === false
+                      ? "font-normal"
+                      : "font-semibold"
+                  }`}
+                >
+                  {row.label}
+                </td>
+                <td className="whitespace-pre-line px-3 py-2 align-top text-muted-foreground">
+                  {row.detail}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
   };
 
   const handleSort = (column: SortColumn) => {
@@ -363,7 +372,11 @@ export function CaptionTable({ posts }: CaptionTableProps) {
               Full Remarks
             </h3>
             <div className="space-y-2 text-sm">
-              {renderRemarks(expandedRemarks)}
+              {renderRemarks(
+                expandedRemarks.remarks,
+                expandedRemarks.caption,
+                expandedRemarks.platform,
+              )}
             </div>
             <button
               onClick={() => setExpandedRemarks(null)}
@@ -509,6 +522,8 @@ export function CaptionTable({ posts }: CaptionTableProps) {
                     <div className="line-clamp-2 space-y-1">
                       {renderRemarks(
                         post.remarks || post.recommendation,
+                        post.caption,
+                        post.platform,
                       )}
                     </div>
                     {(post.remarks || post.recommendation) &&
@@ -517,9 +532,14 @@ export function CaptionTable({ posts }: CaptionTableProps) {
                         <button
                           onClick={() =>
                             setExpandedRemarks(
-                              post.remarks ||
-                                post.recommendation ||
-                                "",
+                              {
+                                remarks:
+                                  post.remarks ||
+                                  post.recommendation ||
+                                  "",
+                                caption: post.caption,
+                                platform: post.platform,
+                              },
                             )
                           }
                           className="text-primary hover:underline text-xs mt-1"
