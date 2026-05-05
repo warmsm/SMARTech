@@ -1,14 +1,14 @@
 import { createClient } from "@supabase/supabase-js";
 
 export const supabase = createClient(
-  "https://bsoxrepklddhxmpskbyk.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzb3hyZXBrbGRkaHhtcHNrYnlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODk0OTQsImV4cCI6MjA5MjI2NTQ5NH0.F90mf-17RRbW4cNwc51sGlCwAe2EAVROPmkFovs_WVc",
+  "https://ybmarmktrhflvsgianqh.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibWFybWt0cmhmbHZzZ2lhbnFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTc4MTksImV4cCI6MjA5MzQ5MzgxOX0.UVGSq0mH18NJ0DqbkXpywo875OhWsHnn6NGMG4ti5AY",
   {
     auth: {
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      storageKey: "smartech-figma-auth",
+      storageKey: "smartech-normalized-auth",
     },
   },
 );

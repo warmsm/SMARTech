@@ -1,8 +1,8 @@
 // Supabase Edge Functions URL
 const serverUrl =
-  "https://bsoxrepklddhxmpskbyk.supabase.co/functions/v1/make-server-e75a6481";
+  "https://ybmarmktrhflvsgianqh.supabase.co/functions/v1/make-server-e75a6481";
 const publicAnonKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJzb3hyZXBrbGRkaHhtcHNrYnlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY2ODk0OTQsImV4cCI6MjA5MjI2NTQ5NH0.F90mf-17RRbW4cNwc51sGlCwAe2EAVROPmkFovs_WVc";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlibWFybWt0cmhmbHZzZ2lhbnFoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5MTc4MTksImV4cCI6MjA5MzQ5MzgxOX0.UVGSq0mH18NJ0DqbkXpywo875OhWsHnn6NGMG4ti5AY";
 
 export const api = {
   async get(endpoint: string) {
