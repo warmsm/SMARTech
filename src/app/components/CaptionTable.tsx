@@ -73,10 +73,35 @@ export function CaptionTable({ posts }: CaptionTableProps) {
     remarks?: string,
     caption?: string,
     platform?: string | string[],
+    variant: "table" | "lines" = "table",
   ) => {
     const rows = getCaptionRemarkRows({ remarks, caption, platform });
 
     if (rows.length === 0) return null;
+
+    if (variant === "lines") {
+      return rows.map((row, index) => (
+        <div
+          key={`${row.label}-${index}`}
+          className="leading-snug"
+        >
+          <span
+            className={
+              row.emphasizeLabel === false
+                ? "text-foreground"
+                : "font-semibold text-foreground"
+            }
+          >
+            {row.label}
+          </span>
+          {row.detail ? (
+            <span className="whitespace-pre-line">
+              : {row.detail}
+            </span>
+          ) : null}
+        </div>
+      ));
+    }
 
     return (
       <div className="overflow-hidden rounded-lg border border-border">
@@ -524,6 +549,7 @@ export function CaptionTable({ posts }: CaptionTableProps) {
                         post.remarks || post.recommendation,
                         post.caption,
                         post.platform,
+                        "lines",
                       )}
                     </div>
                     {(post.remarks || post.recommendation) &&
