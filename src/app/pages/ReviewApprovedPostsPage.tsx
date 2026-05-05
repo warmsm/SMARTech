@@ -4,6 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Check, X } from "lucide-react";
 import { Button } from "@/app/components/ui/button";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/app/components/ui/select";
+import { Label } from "@/app/components/ui/label";
+import {
   Table,
   TableBody,
   TableCell,
@@ -27,20 +35,104 @@ export default function ReviewApprovedPostsPage() {
   const [expandedCaption, setExpandedCaption] = useState<
     string | null
   >(null);
+  const [dateFilter, setDateFilter] = useState("all");
 
   const isCentral = currentOffice === "Central NYC";
 
   const getPostTime = (post: AuditPost) =>
     new Date(getPostingDate(post)).getTime();
 
-  const startOfToday = () => {
+  const getStartOfToday = () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return today.getTime();
+    return today;
+  };
+
+  const parsePostingDate = (post: AuditPost) => {
+    const value = getPostingDate(post);
+    const [year, month, day] = value.split("-").map(Number);
+    const parsed =
+      year && month && day
+        ? new Date(year, month - 1, day)
+        : new Date(value);
+
+    if (Number.isNaN(parsed.getTime())) return null;
+    parsed.setHours(0, 0, 0, 0);
+    return parsed;
+  };
+
+  const isWithinDateFilter = (post: AuditPost) => {
+    if (dateFilter === "all") return true;
+
+    const postDate = parsePostingDate(post);
+    if (!postDate) return false;
+
+    const today = getStartOfToday();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    switch (dateFilter) {
+      case "postedLastMonth": {
+        const lastMonth = new Date(today);
+        lastMonth.setMonth(today.getMonth() - 1);
+        return (
+          postDate.getMonth() === lastMonth.getMonth() &&
+          postDate.getFullYear() === lastMonth.getFullYear()
+        );
+      }
+
+      case "postedLast7Days": {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 7);
+        return postDate >= start && postDate < tomorrow;
+      }
+
+      case "postedLast3Days": {
+        const start = new Date(today);
+        start.setDate(today.getDate() - 3);
+        return postDate >= start && postDate < tomorrow;
+      }
+
+      case "postedYesterday": {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        return postDate.getTime() === yesterday.getTime();
+      }
+
+      case "today":
+        return postDate.getTime() === today.getTime();
+
+      case "tomorrow":
+        return postDate.getTime() === tomorrow.getTime();
+
+      case "next3Days": {
+        const end = new Date(today);
+        end.setDate(today.getDate() + 3);
+        return postDate >= tomorrow && postDate <= end;
+      }
+
+      case "next7Days": {
+        const end = new Date(today);
+        end.setDate(today.getDate() + 7);
+        return postDate >= tomorrow && postDate <= end;
+      }
+
+      case "nextMonth": {
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(today.getMonth() + 1);
+        return (
+          postDate.getMonth() === nextMonth.getMonth() &&
+          postDate.getFullYear() === nextMonth.getFullYear()
+        );
+      }
+
+      default:
+        return true;
+    }
   };
 
   const approvedPosts = useMemo(() => {
-    const today = startOfToday();
+    const today = getStartOfToday().getTime();
 
     return posts
       .filter((post) => post.status === "Accepted")
@@ -58,6 +150,10 @@ export default function ReviewApprovedPostsPage() {
         return aTime - bTime;
       });
   }, [posts]);
+
+  const filteredApprovedPosts = useMemo(() => {
+    return approvedPosts.filter(isWithinDateFilter);
+  }, [approvedPosts, dateFilter]);
 
   if (!isCentral) {
     return (
@@ -191,7 +287,59 @@ export default function ReviewApprovedPostsPage() {
           </p>
         </div>
 
-        {approvedPosts.length === 0 ? (
+        <div className="flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="review-date-filter">Date</Label>
+            <Select
+              value={dateFilter}
+              onValueChange={setDateFilter}
+            >
+              <SelectTrigger
+                id="review-date-filter"
+                className="w-[220px]"
+              >
+                <SelectValue placeholder="All Time" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Time</SelectItem>
+                <SelectItem value="postedLastMonth">
+                  Posted Last Month
+                </SelectItem>
+                <SelectItem value="postedLast7Days">
+                  Posted Last 7 Days
+                </SelectItem>
+                <SelectItem value="postedLast3Days">
+                  Posted Last 3 Days
+                </SelectItem>
+                <SelectItem value="postedYesterday">
+                  Posted Yesterday
+                </SelectItem>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="tomorrow">Tomorrow</SelectItem>
+                <SelectItem value="next3Days">
+                  Next 3 Days
+                </SelectItem>
+                <SelectItem value="next7Days">
+                  Next 7 Days
+                </SelectItem>
+                <SelectItem value="nextMonth">
+                  Next Month
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {dateFilter !== "all" && (
+            <Button
+              variant="outline"
+              onClick={() => setDateFilter("all")}
+            >
+              Clear Filter
+            </Button>
+          )}
+        </div>
+
+        {filteredApprovedPosts.length === 0 ? (
           <div className="text-center text-muted-foreground py-10 bg-card rounded-lg border">
             No approved posts to review
           </div>
@@ -214,7 +362,7 @@ export default function ReviewApprovedPostsPage() {
               </TableHeader>
 
               <TableBody>
-                {approvedPosts.map((post) => (
+                {filteredApprovedPosts.map((post) => (
                   <TableRow key={post.id}>
                     <TableCell className="font-medium">
                       {post.id}
