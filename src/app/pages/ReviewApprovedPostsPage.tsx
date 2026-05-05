@@ -93,17 +93,8 @@ export default function ReviewApprovedPostsPage() {
         return postDate >= start && postDate < tomorrow;
       }
 
-      case "postedYesterday": {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        return postDate.getTime() === yesterday.getTime();
-      }
-
       case "today":
         return postDate.getTime() === today.getTime();
-
-      case "tomorrow":
-        return postDate.getTime() === tomorrow.getTime();
 
       case "next3Days": {
         const end = new Date(today);
@@ -311,19 +302,15 @@ export default function ReviewApprovedPostsPage() {
                 <SelectItem value="postedLast3Days">
                   Posted Last 3 Days
                 </SelectItem>
-                <SelectItem value="postedYesterday">
-                  Posted Yesterday
-                </SelectItem>
                 <SelectItem value="today">Today</SelectItem>
-                <SelectItem value="tomorrow">Tomorrow</SelectItem>
                 <SelectItem value="next3Days">
-                  Next 3 Days
+                  To Be Posted within 3 days
                 </SelectItem>
                 <SelectItem value="next7Days">
-                  Next 7 Days
+                  To Be Posted within 7 days
                 </SelectItem>
                 <SelectItem value="nextMonth">
-                  Next Month
+                  To Be Posted within a month
                 </SelectItem>
               </SelectContent>
             </Select>
